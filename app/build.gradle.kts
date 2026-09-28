@@ -4,6 +4,7 @@ plugins {
     id("kotlin-kapt")
     id("com.google.dagger.hilt.android")
     id("com.google.gms.google-services")
+    id("com.google.firebase.crashlytics")
 }
 
 android {
@@ -66,6 +67,7 @@ dependencies {
 
     // Inyección de dependencias con Hilt (HU01)
     implementation("com.google.dagger:hilt-android:2.51.1")
+    implementation("com.google.firebase:firebase-crashlytics:20.1.1")
     kapt("com.google.dagger:hilt-android-compiler:2.51.1")
 
     // Corrutinas (+ .await() para las Tasks de Firebase)
