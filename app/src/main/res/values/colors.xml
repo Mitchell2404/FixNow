@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paleta FixNow (modo claro). Azul como color principal; verde azulado como secundario; ámbar como terciario. -->
+    <color name="fixnow_primary">#1565C0</color>
+    <color name="fixnow_on_primary">#FFFFFF</color>
+    <color name="fixnow_primary_container">#D6E3FF</color>
+    <color name="fixnow_on_primary_container">#001B3E</color>
+    <color name="fixnow_secondary">#006A6A</color>
+    <color name="fixnow_on_secondary">#FFFFFF</color>
+    <color name="fixnow_secondary_container">#9CF1F0</color>
+    <color name="fixnow_on_secondary_container">#002020</color>
+    <color name="fixnow_tertiary">#8A5100</color>
+    <color name="fixnow_on_tertiary">#FFFFFF</color>
+    <color name="fixnow_tertiary_container">#FFDCBD</color>
+    <color name="fixnow_on_tertiary_container">#2C1600</color>
+    <color name="fixnow_error">#BA1A1A</color>
+    <color name="fixnow_on_error">#FFFFFF</color>
+    <color name="fixnow_error_container">#FFDAD6</color>
+    <color name="fixnow_on_error_container">#410002</color>
+    <color name="fixnow_background">#FDFBFF</color>
+    <color name="fixnow_on_background">#1A1C1E</color>
+    <color name="fixnow_surface">#FDFBFF</color>
+    <color name="fixnow_on_surface">#1A1C1E</color>
+    <color name="fixnow_surface_variant">#E0E2EC</color>
+    <color name="fixnow_on_surface_variant">#44474E</color>
+    <color name="fixnow_outline">#74777F</color>
+    <color name="ic_launcher_background">#1565C0</color>
+</resources>

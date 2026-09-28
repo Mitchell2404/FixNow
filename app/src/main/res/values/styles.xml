@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HU02 - Componentes base de FixNow. Úsalos con style="@style/Widget.FixNow...." -->
+
+    <!-- Botón relleno (es el que usa MaterialButton por defecto) -->
+    <style name="Widget.FixNow.Button" parent="Widget.Material3.Button">
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <!-- Botón tonal: acción secundaria importante -->
+    <style name="Widget.FixNow.Button.Tonal" parent="Widget.Material3.Button.TonalButton">
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <!-- Botón con borde: acción alternativa -->
+    <style name="Widget.FixNow.Button.Outlined" parent="Widget.Material3.Button.OutlinedButton">
+        <item name="cornerRadius">12dp</item>
+    </style>
+
+    <!-- Botón de texto: acciones de baja prioridad -->
+    <style name="Widget.FixNow.Button.Text" parent="Widget.Material3.Button.TextButton" />
+
+    <!-- Campo de texto con borde (es el que usa TextInputLayout por defecto) -->
+    <style name="Widget.FixNow.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxCornerRadiusTopStart">12dp</item>
+        <item name="boxCornerRadiusTopEnd">12dp</item>
+        <item name="boxCornerRadiusBottomStart">12dp</item>
+        <item name="boxCornerRadiusBottomEnd">12dp</item>
+    </style>
+
+    <!-- Card (tarjeta) -->
+    <style name="Widget.FixNow.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardCornerRadius">16dp</item>
+    </style>
+</resources>

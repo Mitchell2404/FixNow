@@ -1,0 +1,31 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Perfil de usuario: cada persona solo accede a SU documento.
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+
+      // Al crearse, el rol solo puede ser "cliente" (nadie se auto-asigna admin/técnico).
+      // La foto (Base64) no puede pasar de ~200 KB.
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.get('rol', 'cliente') == 'cliente'
+                    && request.resource.data.get('fotoBase64', '').size() < 200000;
+
+      // Al editar, el rol no puede cambiar. Los cambios de rol (HU13) los hace un admin
+      // desde la consola o una Cloud Function.
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.get('rol', 'cliente') == resource.data.get('rol', 'cliente')
+                    && request.resource.data.get('fotoBase64', '').size() < 200000;
+
+      allow delete: if false;
+    }
+
+    // Todo lo demás está cerrado hasta que una historia de usuario lo necesite.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FixNow</string>
+    <string name="home_greeting">Hola, %1$s</string>
+    <string name="home_greeting_no_name">Hola</string>
+    <string name="profile_biometric_unavailable">Huella no disponible en este dispositivo</string>
+    <string name="profile_biometric_confirm_title">Activar huella dactilar</string>
+    <string name="profile_biometric_confirm_subtitle">Confirma con tu huella para activarla</string>
+</resources>

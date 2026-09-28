@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!--
+        HU02 - Tema de FixNow (Material Design 3).
+        DayNight = cambia solo entre claro y oscuro según el teléfono.
+        Los colores se definen UNA vez aquí y se leen en los layouts con ?attr/colorPrimary, etc.
+    -->
+    <style name="Theme.FixNow" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Primario (azul) -->
+        <item name="colorPrimary">@color/fixnow_primary</item>
+        <item name="colorOnPrimary">@color/fixnow_on_primary</item>
+        <item name="colorPrimaryContainer">@color/fixnow_primary_container</item>
+        <item name="colorOnPrimaryContainer">@color/fixnow_on_primary_container</item>
+
+        <!-- Secundario (verde azulado) -->
+        <item name="colorSecondary">@color/fixnow_secondary</item>
+        <item name="colorOnSecondary">@color/fixnow_on_secondary</item>
+        <item name="colorSecondaryContainer">@color/fixnow_secondary_container</item>
+        <item name="colorOnSecondaryContainer">@color/fixnow_on_secondary_container</item>
+
+        <!-- Terciario (ámbar): para acentos como estrellas de puntaje o avisos -->
+        <item name="colorTertiary">@color/fixnow_tertiary</item>
+        <item name="colorOnTertiary">@color/fixnow_on_tertiary</item>
+        <item name="colorTertiaryContainer">@color/fixnow_tertiary_container</item>
+        <item name="colorOnTertiaryContainer">@color/fixnow_on_tertiary_container</item>
+
+        <!-- Error -->
+        <item name="colorError">@color/fixnow_error</item>
+        <item name="colorOnError">@color/fixnow_on_error</item>
+        <item name="colorErrorContainer">@color/fixnow_error_container</item>
+        <item name="colorOnErrorContainer">@color/fixnow_on_error_container</item>
+
+        <!-- Fondos y superficies -->
+        <item name="android:colorBackground">@color/fixnow_background</item>
+        <item name="colorOnBackground">@color/fixnow_on_background</item>
+        <item name="colorSurface">@color/fixnow_surface</item>
+        <item name="colorOnSurface">@color/fixnow_on_surface</item>
+        <item name="colorSurfaceVariant">@color/fixnow_surface_variant</item>
+        <item name="colorOnSurfaceVariant">@color/fixnow_on_surface_variant</item>
+        <item name="colorOutline">@color/fixnow_outline</item>
+
+        <!-- Tipografía (ver type.xml) -->
+        <item name="textAppearanceHeadlineMedium">@style/TextAppearance.FixNow.HeadlineMedium</item>
+        <item name="textAppearanceTitleLarge">@style/TextAppearance.FixNow.TitleLarge</item>
+        <item name="textAppearanceBodyLarge">@style/TextAppearance.FixNow.BodyLarge</item>
+        <item name="textAppearanceLabelLarge">@style/TextAppearance.FixNow.LabelLarge</item>
+
+        <!-- Componentes base: todos los botones, inputs y cards usan estos estilos por defecto (ver styles.xml) -->
+        <item name="materialButtonStyle">@style/Widget.FixNow.Button</item>
+        <item name="textInputStyle">@style/Widget.FixNow.TextInputLayout</item>
+        <item name="materialCardViewStyle">@style/Widget.FixNow.Card</item>
+    </style>
+</resources>

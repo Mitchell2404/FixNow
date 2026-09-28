@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Paleta FixNow (modo oscuro). Mismos nombres que en values/colors.xml: Android elige el archivo según el modo del teléfono. -->
+    <color name="fixnow_primary">#AAC7FF</color>
+    <color name="fixnow_on_primary">#002F64</color>
+    <color name="fixnow_primary_container">#00458E</color>
+    <color name="fixnow_on_primary_container">#D6E3FF</color>
+    <color name="fixnow_secondary">#80D4D4</color>
+    <color name="fixnow_on_secondary">#003737</color>
+    <color name="fixnow_secondary_container">#004F4F</color>
+    <color name="fixnow_on_secondary_container">#9CF1F0</color>
+    <color name="fixnow_tertiary">#FFB870</color>
+    <color name="fixnow_on_tertiary">#4A2800</color>
+    <color name="fixnow_tertiary_container">#693C00</color>
+    <color name="fixnow_on_tertiary_container">#FFDCBD</color>
+    <color name="fixnow_error">#FFB4AB</color>
+    <color name="fixnow_on_error">#690005</color>
+    <color name="fixnow_error_container">#93000A</color>
+    <color name="fixnow_on_error_container">#FFDAD6</color>
+    <color name="fixnow_background">#1A1C1E</color>
+    <color name="fixnow_on_background">#E3E2E6</color>
+    <color name="fixnow_surface">#1A1C1E</color>
+    <color name="fixnow_on_surface">#E3E2E6</color>
+    <color name="fixnow_surface_variant">#44474E</color>
+    <color name="fixnow_on_surface_variant">#C4C6D0</color>
+    <color name="fixnow_outline">#8E9099</color>
+</resources>
