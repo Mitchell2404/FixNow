@@ -38,7 +38,6 @@ android {
     }
 
     buildFeatures {
-        viewBinding = true
         buildConfig = true
         compose = true
     }
@@ -56,7 +55,6 @@ dependencies {
     // AndroidX base
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("androidx.fragment:fragment-ktx:1.7.1")
     implementation("androidx.activity:activity-ktx:1.9.0")
 
     // Material Design 3 (HU02)
@@ -66,9 +64,6 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.3")
 
-    // Navegación entre pantallas
-    implementation("androidx.navigation:navigation-fragment-ktx:2.7.7")
-    implementation("androidx.navigation:navigation-ui-ktx:2.7.7")
 
     // Inyección de dependencias con Hilt (HU01)
     implementation("com.google.dagger:hilt-android:2.51.1")
