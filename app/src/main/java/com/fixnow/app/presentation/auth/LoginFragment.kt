@@ -4,85 +4,130 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.fragment.findNavController
 import com.fixnow.app.R
 import com.fixnow.app.core.util.collectWhenStarted
-import com.fixnow.app.core.util.setVisible
 import com.fixnow.app.core.util.showSnackbar
-import com.fixnow.app.databinding.FragmentLoginBinding
 import com.fixnow.app.presentation.biometric.BiometricAuthManager
+import com.fixnow.app.presentation.theme.FixNowTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-/** HU04 (login por correo y contraseña) + HU06 (ingreso con huella). Sin lógica de negocio aquí. */
 @AndroidEntryPoint
 class LoginFragment : Fragment() {
-
-    private var _binding: FragmentLoginBinding? = null
-    private val binding get() = _binding!!
 
     private val viewModel: LoginViewModel by viewModels()
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?
+        inflater: LayoutInflater,
+        container: ViewGroup?,
+        savedInstanceState: Bundle?
     ): View {
-        _binding = FragmentLoginBinding.inflate(inflater, container, false)
-        return binding.root
-    }
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
+        val biometricAvailable = isBiometricShortcutAvailable()
 
-        binding.buttonLogin.setOnClickListener {
-            viewModel.login(
-                email = binding.inputEmail.text.toString().trim(),
-                password = binding.inputPassword.text.toString()
+        return ComposeView(requireContext()).apply {
+
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed
             )
-        }
-        binding.textForgotPassword.setOnClickListener {
-            viewModel.onForgotPassword(binding.inputEmail.text.toString().trim())
-        }
-        binding.textGoToRegister.setOnClickListener {
-            findNavController().navigate(R.id.action_login_to_register)
-        }
 
-        setupBiometricShortcut(autoPrompt = savedInstanceState == null)
+            setContent {
 
-        collectWhenStarted(viewModel.uiState) { state ->
-            binding.progressLogin.setVisible(state.isLoading)
-            binding.buttonLogin.isEnabled = !state.isLoading
-        }
-        collectWhenStarted(viewModel.events) { event ->
-            when (event) {
-                LoginEvent.NavigateToHome -> findNavController().navigate(R.id.action_login_to_home)
-                is LoginEvent.ShowMessage -> showSnackbar(event.message)
+                FixNowTheme {
+
+                    val state by viewModel.uiState
+                        .collectAsStateWithLifecycle()
+
+                    LoginScreen(
+                        isLoading = state.isLoading,
+                        showBiometricLogin = biometricAvailable,
+
+                        onLogin = { email, password ->
+                            viewModel.login(
+                                email = email,
+                                password = password
+                            )
+                        },
+
+                        onForgotPassword = { email ->
+                            viewModel.onForgotPassword(email)
+                        },
+
+                        onRegister = {
+                            findNavController().navigate(
+                                R.id.action_login_to_register
+                            )
+                        },
+
+                        onBiometricLogin = {
+                            promptBiometric()
+                        }
+                    )
+                }
             }
         }
     }
 
-    private fun setupBiometricShortcut(autoPrompt: Boolean) {
-        val available = viewModel.biometricShortcutEnabled &&
-            BiometricAuthManager.isBiometricAvailable(requireContext())
+    override fun onViewCreated(
+        view: View,
+        savedInstanceState: Bundle?
+    ) {
+        super.onViewCreated(view, savedInstanceState)
 
-        binding.buttonBiometricLogin.setVisible(available)
-        if (!available) return
+        collectWhenStarted(viewModel.events) { event ->
 
-        binding.buttonBiometricLogin.setOnClickListener { promptBiometric() }
-        // Al abrir la app con la huella activada, se pide de una vez.
-        if (autoPrompt) binding.root.post { if (isAdded) promptBiometric() }
+            when (event) {
+
+                LoginEvent.NavigateToHome -> {
+                    findNavController().navigate(
+                        R.id.action_login_to_home
+                    )
+                }
+
+                is LoginEvent.ShowMessage -> {
+                    showSnackbar(event.message)
+                }
+            }
+        }
+
+        // Si el usuario ya tiene biometría activada,
+        // mostramos automáticamente el diálogo al abrir.
+        if (
+            savedInstanceState == null &&
+            isBiometricShortcutAvailable()
+        ) {
+            view.post {
+                if (isAdded) {
+                    promptBiometric()
+                }
+            }
+        }
+    }
+
+    private fun isBiometricShortcutAvailable(): Boolean {
+
+        return viewModel.biometricShortcutEnabled &&
+                BiometricAuthManager.isBiometricAvailable(
+                    requireContext()
+                )
     }
 
     private fun promptBiometric() {
+
         BiometricAuthManager.showBiometricPrompt(
             fragment = this,
-            onSuccess = viewModel::onBiometricSuccess,
-            onError = { message -> showSnackbar(message) }
+            onSuccess = {
+                viewModel.onBiometricSuccess()
+            },
+            onError = { message ->
+                showSnackbar(message)
+            }
         )
-    }
-
-    override fun onDestroyView() {
-        super.onDestroyView()
-        _binding = null
     }
 }

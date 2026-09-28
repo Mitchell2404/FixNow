@@ -1,30 +1,71 @@
 package com.fixnow.app.presentation.main
 
 import android.os.Bundle
+import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.navigation.fragment.NavHostFragment
-import com.fixnow.app.R
-import com.fixnow.app.databinding.ActivityMainBinding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.navigation.compose.rememberNavController
+import com.fixnow.app.presentation.navigation.FixNowNavHost
+import com.fixnow.app.presentation.theme.FixNowTheme
 import dagger.hilt.android.AndroidEntryPoint
 
-/** Única Activity de la app: solo aloja el NavHost. Toda la UI son Fragments. */
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityMainBinding
     private val viewModel: MainViewModel by viewModels()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
 
-        val navHost = supportFragmentManager.findFragmentById(R.id.navHostFragment) as NavHostFragment
-        val navController = navHost.navController
+        setContent {
 
-        val graph = navController.navInflater.inflate(R.navigation.nav_graph)
-        graph.setStartDestination(if (viewModel.startAtHome) R.id.homeFragment else R.id.loginFragment)
-        navController.graph = graph
+            FixNowTheme {
+
+                val navController =
+                    rememberNavController()
+
+                val snackbarHostState =
+                    remember {
+                        SnackbarHostState()
+                    }
+
+                Scaffold(
+                    snackbarHost = {
+                        SnackbarHost(
+                            hostState =
+                                snackbarHostState
+                        )
+                    }
+                ) { innerPadding ->
+
+                    FixNowNavHost(
+                        navController =
+                            navController,
+
+                        startAtHome =
+                            viewModel.startAtHome,
+
+                        activity =
+                            this@MainActivity,
+
+                        snackbarHostState =
+                            snackbarHostState,
+
+                        modifier =
+                            Modifier.padding(
+                                innerPadding
+                            )
+                    )
+                }
+            }
+        }
     }
 }
