@@ -52,6 +52,8 @@ fun SolicitudServicioScreen(
     onCategoriaChange: (CategoriaServicio) -> Unit,
     onUrgenciaChange: (UrgenciaServicio) -> Unit,
     onTomarFoto: () -> Unit,
+    onObtenerUbicacion: () -> Unit,
+    onDireccionChange: (String) -> Unit,
     onVolver: () -> Unit
 ) {
     var categoriasAbiertas by remember {
@@ -130,6 +132,7 @@ fun SolicitudServicioScreen(
             maxLines = 6
         )
 
+        //Imagen
         Text(
             text = "Fotografía del equipo",
             style = MaterialTheme.typography.titleMedium
@@ -188,6 +191,75 @@ fun SolicitudServicioScreen(
                 color = MaterialTheme.colorScheme.error
             )
         }
+
+        //Ubicacion
+        Text(
+            text = "Ubicación del servicio",
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        Text(
+            text = "Obtén la ubicación cuando estés en el lugar donde necesitas la atención."
+        )
+
+        OutlinedButton(
+            onClick = onObtenerUbicacion,
+            enabled = !state.obteniendoUbicacion
+        ) {
+            Text(
+                text = if (state.latitud == null) {
+                    "Usar mi ubicación"
+                } else {
+                    "Actualizar ubicación"
+                }
+            )
+        }
+
+        if (state.obteniendoUbicacion) {
+            CircularProgressIndicator()
+            Text("Obteniendo ubicación…")
+        }
+
+        if (state.latitud != null && state.longitud != null) {
+            Text("Ubicación registrada")
+
+            Text(
+                text = String.format(
+                    java.util.Locale.US,
+                    "Latitud: %.5f\nLongitud: %.5f",
+                    state.latitud,
+                    state.longitud
+                )
+            )
+
+            if (state.ubicacionAproximada) {
+                Text(
+                    text = "El permiso concedido permite una ubicación aproximada. " +
+                            "Puedes habilitar la ubicación precisa en los ajustes de la aplicación."
+                )
+            }
+        }
+
+        state.errorUbicacion?.let { mensaje ->
+            Text(
+                text = mensaje,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
+        OutlinedTextField(
+            value = state.direccion,
+            onValueChange = onDireccionChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = {
+                Text("Dirección y referencia")
+            },
+            placeholder = {
+                Text("Ejemplo: Av. Los Olivos 123, segundo piso.")
+            },
+            minLines = 2,
+            maxLines = 3
+        )
 
         // Urgencia
         Text(
@@ -297,6 +369,8 @@ private fun SolicitudServicioScreenPreview() {
             onCategoriaChange = {},
             onUrgenciaChange = {},
             onTomarFoto = {},
+            onObtenerUbicacion = {},
+            onDireccionChange = {},
             onVolver = {}
         )
     }

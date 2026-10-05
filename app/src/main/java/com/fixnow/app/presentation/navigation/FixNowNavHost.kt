@@ -183,6 +183,25 @@ fun FixNowNavHost(
                 }
             }
 
+            val permisoUbicacionLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestMultiplePermissions()
+            ) { permisos ->
+                val preciso =
+                    permisos[Manifest.permission.ACCESS_FINE_LOCATION] == true
+
+                val aproximado =
+                    permisos[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+
+                if (preciso || aproximado) {
+                    viewModel.obtenerUbicacion()
+                } else {
+                    viewModel.mostrarErrorUbicacion(
+                        "No se concedió el permiso de ubicación. " +
+                                "Puedes habilitarlo en los ajustes de la aplicación."
+                    )
+                }
+            }
+
             SolicitudServicioScreen(
                 state = state,
                 onDescripcionChange = viewModel::cambiarDescripcion,
@@ -193,6 +212,15 @@ fun FixNowNavHost(
                         Manifest.permission.CAMERA
                     )
                 },
+                onObtenerUbicacion = {
+                    permisoUbicacionLauncher.launch(
+                        arrayOf(
+                            Manifest.permission.ACCESS_FINE_LOCATION,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                        )
+                    )
+                },
+                onDireccionChange = viewModel::cambiarDireccion,
                 onVolver = {
                     navController.popBackStack()
                 }

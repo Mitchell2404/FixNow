@@ -110,4 +110,12 @@ dependencies {
 
 // Hilt + Navigation Compose
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
+
+    // Obtener la ubicación del dispositivo
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+
+    // Mapa para seleccionar la ubicación del servicio
+    implementation("org.maplibre.gl:android-sdk:11.0.0")
+
+
 }
