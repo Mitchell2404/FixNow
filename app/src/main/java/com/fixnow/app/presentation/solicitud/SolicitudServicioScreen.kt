@@ -34,6 +34,16 @@ import com.fixnow.app.domain.model.CategoriaServicio
 import com.fixnow.app.domain.model.UrgenciaServicio
 import com.fixnow.app.presentation.theme.FixNowTheme
 import java.util.Locale
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.dp
 
 @Composable
 fun SolicitudServicioScreen(
@@ -41,6 +51,7 @@ fun SolicitudServicioScreen(
     onDescripcionChange: (String) -> Unit,
     onCategoriaChange: (CategoriaServicio) -> Unit,
     onUrgenciaChange: (UrgenciaServicio) -> Unit,
+    onTomarFoto: () -> Unit,
     onVolver: () -> Unit
 ) {
     var categoriasAbiertas by remember {
@@ -118,6 +129,65 @@ fun SolicitudServicioScreen(
             minLines = 4,
             maxLines = 6
         )
+
+        Text(
+            text = "Fotografía del equipo",
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        OutlinedButton(
+            onClick = onTomarFoto,
+            enabled = !state.procesandoFoto
+        ) {
+            Text(
+                text = if (state.fotoBase64.isBlank()) {
+                    "Tomar fotografía"
+                } else {
+                    "Cambiar fotografía"
+                }
+            )
+        }
+
+        if (state.procesandoFoto) {
+            CircularProgressIndicator()
+        }
+
+        if (state.fotoBase64.isNotBlank()) {
+            val imagen = remember(state.fotoBase64) {
+                runCatching {
+                    val bytes = Base64.decode(
+                        state.fotoBase64,
+                        Base64.DEFAULT
+                    )
+
+                    BitmapFactory.decodeByteArray(
+                        bytes,
+                        0,
+                        bytes.size
+                    )?.asImageBitmap()
+                }.getOrNull()
+            }
+
+            if (imagen != null) {
+                Image(
+                    bitmap = imagen,
+                    contentDescription = "Fotografía del equipo",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(220.dp),
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Text("No se pudo mostrar la fotografía.")
+            }
+        }
+
+        state.errorFoto?.let { mensaje ->
+            Text(
+                text = mensaje,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
 
         // Urgencia
         Text(
@@ -226,6 +296,7 @@ private fun SolicitudServicioScreenPreview() {
             onDescripcionChange = {},
             onCategoriaChange = {},
             onUrgenciaChange = {},
+            onTomarFoto = {},
             onVolver = {}
         )
     }

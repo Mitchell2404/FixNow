@@ -111,16 +111,88 @@ fun FixNowNavHost(
             DesignSystemScreen()
         }
 
+        // SISTEMA DE SOLICITUD
         composable(Routes.NUEVA_SOLICITUD) {
             val viewModel: SolicitudServicioViewModel = hiltViewModel()
 
             val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+            val context = LocalContext.current
+            val scope = rememberCoroutineScope()
+
+            var fotoPendienteUri by rememberSaveable {
+                mutableStateOf<String?>(null)
+            }
+
+            // Recibe el resultado de la cámara.
+            val camaraLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.TakePicture()
+            ) { guardada ->
+                val uri = fotoPendienteUri
+                fotoPendienteUri = null
+
+                if (guardada && uri != null) {
+                    viewModel.procesarFoto(uri)
+                }
+            }
+
+            // Solicita permiso y abre la cámara.
+            val permisoLauncher = rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.RequestPermission()
+            ) { concedido ->
+                if (concedido) {
+                    try {
+                        val archivo = File.createTempFile(
+                            "solicitud_",
+                            ".jpg",
+                            context.cacheDir
+                        )
+
+                        val uri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            archivo
+                        )
+
+                        fotoPendienteUri = uri.toString()
+                        camaraLauncher.launch(uri)
+                    } catch (error: Exception) {
+                        fotoPendienteUri = null
+
+                        android.util.Log.e(
+                            "FotoSolicitud",
+                            "Error al abrir la cámara",
+                            error
+                        )
+
+                        scope.launch {
+                            snackbarHostState.showSnackbar(
+                                message = "${error.javaClass.simpleName}: " +
+                                        (error.message ?: "Error sin detalle"),
+                                duration = androidx.compose.material3.SnackbarDuration.Long
+                            )
+                        }
+                    }
+                } else {
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            "Se necesita permiso de cámara. " +
+                                    "Puedes habilitarlo en los ajustes de la aplicación."
+                        )
+                    }
+                }
+            }
 
             SolicitudServicioScreen(
                 state = state,
                 onDescripcionChange = viewModel::cambiarDescripcion,
                 onCategoriaChange = viewModel::seleccionarCategoria,
                 onUrgenciaChange = viewModel::seleccionarUrgencia,
+                onTomarFoto = {
+                    permisoLauncher.launch(
+                        Manifest.permission.CAMERA
+                    )
+                },
                 onVolver = {
                     navController.popBackStack()
                 }

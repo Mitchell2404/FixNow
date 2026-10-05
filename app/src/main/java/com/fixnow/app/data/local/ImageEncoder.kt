@@ -27,9 +27,20 @@ class ImageEncoder @Inject constructor(
         val resolver = context.contentResolver
 
         // 1) Leer solo las dimensiones, para no cargar una foto de 12 MP completa en memoria.
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        resolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-            ?: error("No se pudo leer la foto")
+        val bounds = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+        }
+
+        val entrada = resolver.openInputStream(uri)
+            ?: error("No se pudo abrir la foto")
+
+        entrada.use {
+            BitmapFactory.decodeStream(it, null, bounds)
+        }
+
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            error("La fotografía no contiene una imagen válida")
+        }
 
         var sample = 1
         while (bounds.outWidth / (sample * 2) >= targetSizePx && bounds.outHeight / (sample * 2) >= targetSizePx) {

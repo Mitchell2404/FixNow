@@ -10,18 +10,29 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.inject.Inject
+import androidx.lifecycle.viewModelScope
+import com.fixnow.app.data.local.ImageEncoder
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class SolicitudServicioUiState(
     val descripcion: String = "",
     val categoria: CategoriaServicio? = null,
     val urgencia: UrgenciaServicio = UrgenciaServicio.NORMAL,
-    val precioSugerido: Double? = null
+    val precioSugerido: Double? = null,
+    val fotoBase64: String = "",
+    val procesandoFoto: Boolean = false,
+    val errorFoto: String? = null
 )
 
 @HiltViewModel
 class SolicitudServicioViewModel @Inject constructor(
     private val calcularPrecio: CalcularPrecioSugeridoUseCase,
-    private val savedStateHandle: SavedStateHandle
+    private val savedStateHandle: SavedStateHandle,
+    private val imageEncoder: ImageEncoder
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(leerEstado())
@@ -44,8 +55,59 @@ class SolicitudServicioViewModel @Inject constructor(
         actualizarEstado()
     }
 
+    fun procesarFoto(uri: String) {
+        if (_uiState.value.procesandoFoto) return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    procesandoFoto = true,
+                    errorFoto = null
+                )
+            }
+
+            try {
+                val base64 = withContext(Dispatchers.IO) {
+                    imageEncoder.toSquareBase64(
+                        uriString = uri,
+                        targetSizePx = 512
+                    )
+                }
+
+                require(base64.length <= 180_000) {
+                    "La fotografía es demasiado pesada. Intenta tomar otra."
+                }
+
+                _uiState.update {
+                    it.copy(
+                        fotoBase64 = base64,
+                        procesandoFoto = false
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                _uiState.update {
+                    it.copy(
+                        procesandoFoto = false,
+                        errorFoto = error.message
+                            ?: "No se pudo preparar la fotografía."
+                    )
+                }
+            }
+        }
+    }
+
     private fun actualizarEstado() {
-        _uiState.value = leerEstado()
+        val formulario = leerEstado()
+
+        _uiState.update { actual ->
+            formulario.copy(
+                fotoBase64 = actual.fotoBase64,
+                procesandoFoto = actual.procesandoFoto,
+                errorFoto = actual.errorFoto
+            )
+        }
     }
 
     private fun leerEstado(): SolicitudServicioUiState {
