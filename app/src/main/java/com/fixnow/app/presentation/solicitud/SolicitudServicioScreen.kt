@@ -1,32 +1,50 @@
 package com.fixnow.app.presentation.solicitud
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.fixnow.app.domain.model.CategoriaServicio
+import com.fixnow.app.domain.model.UrgenciaServicio
 import com.fixnow.app.presentation.theme.FixNowTheme
+import java.util.Locale
 
 @Composable
 fun SolicitudServicioScreen(
+    state: SolicitudServicioUiState,
+    onDescripcionChange: (String) -> Unit,
+    onCategoriaChange: (CategoriaServicio) -> Unit,
+    onUrgenciaChange: (UrgenciaServicio) -> Unit,
     onVolver: () -> Unit
 ) {
-    var descripcion by rememberSaveable {
-        mutableStateOf("")
+    var categoriasAbiertas by remember {
+        mutableStateOf(false)
     }
 
     Column(
@@ -36,9 +54,7 @@ fun SolicitudServicioScreen(
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        TextButton(
-            onClick = onVolver
-        ) {
+        TextButton(onClick = onVolver) {
             Text("Volver")
         }
 
@@ -48,15 +64,50 @@ fun SolicitudServicioScreen(
         )
 
         Text(
-            text = "Cuéntanos qué problema tiene tu computadora o laptop.",
-            style = MaterialTheme.typography.bodyLarge
+            text = "Cuéntanos qué problema tiene tu computadora o laptop."
         )
 
+        // Categoría
+        Text(
+            text = "Tipo de servicio",
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        Box(modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(
+                onClick = { categoriasAbiertas = true },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = state.categoria?.titulo
+                        ?: "Selecciona una categoría"
+                )
+            }
+
+            DropdownMenu(
+                expanded = categoriasAbiertas,
+                onDismissRequest = {
+                    categoriasAbiertas = false
+                }
+            ) {
+                CategoriaServicio.entries.forEach { categoria ->
+                    DropdownMenuItem(
+                        text = {
+                            Text(categoria.titulo)
+                        },
+                        onClick = {
+                            onCategoriaChange(categoria)
+                            categoriasAbiertas = false
+                        }
+                    )
+                }
+            }
+        }
+
+        // Descripción
         OutlinedTextField(
-            value = descripcion,
-            onValueChange = { nuevoTexto ->
-                descripcion = nuevoTexto
-            },
+            value = state.descripcion,
+            onValueChange = onDescripcionChange,
             modifier = Modifier.fillMaxWidth(),
             label = {
                 Text("Descripción del problema")
@@ -67,6 +118,99 @@ fun SolicitudServicioScreen(
             minLines = 4,
             maxLines = 6
         )
+
+        // Urgencia
+        Text(
+            text = "¿Qué tan pronto necesitas atención?",
+            style = MaterialTheme.typography.titleMedium
+        )
+
+        Column(
+            modifier = Modifier.selectableGroup()
+        ) {
+            UrgenciaServicio.entries.forEach { urgencia ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = state.urgencia == urgencia,
+                            role = Role.RadioButton,
+                            onClick = {
+                                onUrgenciaChange(urgencia)
+                            }
+                        )
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    RadioButton(
+                        selected = state.urgencia == urgencia,
+                        onClick = null
+                    )
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = urgencia.titulo,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+
+                        Text(
+                            text = urgencia.descripcion,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+            }
+        }
+
+        if (state.urgencia == UrgenciaServicio.URGENTE) {
+            Text(
+                text = "La atención depende de la disponibilidad "
+                        + "de técnicos en tu zona.",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        // Precio
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Precio referencial",
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                val precio = state.precioSugerido
+
+                if (precio == null) {
+                    Text("Selecciona una categoría para ver la estimación.")
+                } else {
+                    Text(
+                        text = String.format(
+                            Locale("es", "PE"),
+                            "S/ %.2f",
+                            precio
+                        ),
+                        style = MaterialTheme.typography.headlineSmall
+                    )
+
+                    Text(
+                        text = "Incluye el recargo por urgencia, "
+                                + "cuando corresponde.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+
+                Text(
+                    text = "Estimación de atención y mano de obra. "
+                            + "No incluye repuestos ni licencias. "
+                            + "El técnico confirmará el costo antes del trabajo.",
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
     }
 }
 
@@ -75,6 +219,13 @@ fun SolicitudServicioScreen(
 private fun SolicitudServicioScreenPreview() {
     FixNowTheme {
         SolicitudServicioScreen(
+            state = SolicitudServicioUiState(
+                categoria = CategoriaServicio.MANTENIMIENTO,
+                precioSugerido = 60.0
+            ),
+            onDescripcionChange = {},
+            onCategoriaChange = {},
+            onUrgenciaChange = {},
             onVolver = {}
         )
     }

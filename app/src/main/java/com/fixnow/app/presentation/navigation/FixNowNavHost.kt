@@ -43,7 +43,7 @@ import com.fixnow.app.presentation.profile.ProfileViewModel
 import kotlinx.coroutines.launch
 import java.io.File
 import com.fixnow.app.presentation.solicitud.SolicitudServicioScreen
-
+import com.fixnow.app.presentation.solicitud.SolicitudServicioViewModel
 
 @Composable
 fun FixNowNavHost(
@@ -112,7 +112,15 @@ fun FixNowNavHost(
         }
 
         composable(Routes.NUEVA_SOLICITUD) {
+            val viewModel: SolicitudServicioViewModel = hiltViewModel()
+
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+
             SolicitudServicioScreen(
+                state = state,
+                onDescripcionChange = viewModel::cambiarDescripcion,
+                onCategoriaChange = viewModel::seleccionarCategoria,
+                onUrgenciaChange = viewModel::seleccionarUrgencia,
                 onVolver = {
                     navController.popBackStack()
                 }
