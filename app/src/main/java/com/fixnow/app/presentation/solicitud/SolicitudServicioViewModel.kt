@@ -27,6 +27,13 @@ import com.google.android.gms.tasks.CancellationTokenSource
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.tasks.await
+import android.location.Address
+import android.location.Geocoder
+import android.os.Build
+import java.util.Locale
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 
 data class SolicitudServicioUiState(
     val descripcion: String = "",
@@ -126,6 +133,74 @@ class SolicitudServicioViewModel @Inject constructor(
         }
     }
 
+    private suspend fun buscarDireccion(
+        latitud: Double,
+        longitud: Double
+    ): String? {
+        if (!Geocoder.isPresent()) return null
+
+        return try {
+            val geocoder = Geocoder(context, Locale("es", "PE"))
+
+            val direccion = if (
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+            ) {
+                withTimeoutOrNull(10_000L) {
+                    suspendCancellableCoroutine<String?> { continuacion ->
+                        geocoder.getFromLocation(
+                            latitud,
+                            longitud,
+                            1,
+                            object : Geocoder.GeocodeListener {
+                                override fun onGeocode(
+                                    addresses: MutableList<Address>
+                                ) {
+                                    val texto = addresses
+                                        .firstOrNull()
+                                        ?.getAddressLine(0)
+
+                                    if (continuacion.isActive) {
+                                        continuacion.resume(texto)
+                                    }
+                                }
+
+                                override fun onError(errorMessage: String?) {
+                                    if (continuacion.isActive) {
+                                        continuacion.resume(null)
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            } else {
+                withContext(Dispatchers.IO) {
+                    @Suppress("DEPRECATION")
+                    val resultados = geocoder.getFromLocation(
+                        latitud,
+                        longitud,
+                        1
+                    )
+
+                    resultados
+                        ?.firstOrNull()
+                        ?.getAddressLine(0)
+                }
+            }
+
+            direccion?.takeIf { it.isNotBlank() }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            android.util.Log.e(
+                "UbicacionSolicitud",
+                "No se pudo obtener la dirección",
+                error
+            )
+            null
+        }
+    }
+
     fun obtenerUbicacion() {
         if (_uiState.value.obteniendoUbicacion) return
 
@@ -182,14 +257,30 @@ class SolicitudServicioViewModel @Inject constructor(
                         "No se pudo obtener la ubicación. " +
                                 "Comprueba que esté activada e inténtalo nuevamente."
                     )
-                } else {
-                    savedStateHandle["latitud"] = ubicacion.latitude
-                    savedStateHandle["longitud"] = ubicacion.longitude
-                    savedStateHandle["ubicacionAproximada"] =
-                        !permisoPreciso
+                }else {
+                savedStateHandle["latitud"] = ubicacion.latitude
+                savedStateHandle["longitud"] = ubicacion.longitude
+                savedStateHandle["ubicacionAproximada"] = !permisoPreciso
 
+                // Limpiar la dirección anterior al registrar una nueva ubicación.
+                savedStateHandle["direccion"] = ""
+                actualizarEstado()
+
+                val direccionEncontrada = buscarDireccion(
+                    latitud = ubicacion.latitude,
+                    longitud = ubicacion.longitude
+                )
+
+                if (direccionEncontrada != null) {
+                    savedStateHandle["direccion"] = direccionEncontrada
                     actualizarEstado()
+                } else {
+                    mostrarErrorUbicacion(
+                        "Ubicación registrada, pero no se pudo encontrar la dirección. " +
+                                "Escríbela manualmente."
+                    )
                 }
+            }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {

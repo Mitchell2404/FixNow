@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.firebase.messaging.FirebaseMessaging
 import dagger.hilt.android.HiltAndroidApp
 
+
 /** @HiltAndroidApp activa Hilt en toda la aplicación (HU01). */
 @HiltAndroidApp
 class FixNowApp : Application() {

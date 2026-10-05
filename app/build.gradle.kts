@@ -117,5 +117,9 @@ dependencies {
     // Mapa para seleccionar la ubicación del servicio
     implementation("org.maplibre.gl:android-sdk:11.0.0")
 
+// Mapa para seleccionar la ubicación del servicio
+    implementation("org.maplibre.gl:android-sdk:11.0.0")
 
+// Identificar las solicitudes de mapas como provenientes de FixNow
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

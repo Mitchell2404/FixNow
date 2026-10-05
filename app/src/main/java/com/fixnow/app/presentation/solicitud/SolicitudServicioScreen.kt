@@ -217,7 +217,7 @@ fun SolicitudServicioScreen(
 
         if (state.obteniendoUbicacion) {
             CircularProgressIndicator()
-            Text("Obteniendo ubicación…")
+            Text("Obteniendo ubicación y dirección…")
         }
 
         if (state.latitud != null && state.longitud != null) {
@@ -250,6 +250,7 @@ fun SolicitudServicioScreen(
         OutlinedTextField(
             value = state.direccion,
             onValueChange = onDireccionChange,
+            enabled = !state.obteniendoUbicacion,
             modifier = Modifier.fillMaxWidth(),
             label = {
                 Text("Dirección y referencia")
@@ -257,8 +258,11 @@ fun SolicitudServicioScreen(
             placeholder = {
                 Text("Ejemplo: Av. Los Olivos 123, segundo piso.")
             },
+            supportingText = {
+                Text("Verifica la dirección y agrega el número, piso o referencia.")
+            },
             minLines = 2,
-            maxLines = 3
+            maxLines = 4
         )
 
         // Urgencia
