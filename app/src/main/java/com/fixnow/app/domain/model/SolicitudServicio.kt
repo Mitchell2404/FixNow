@@ -17,10 +17,10 @@ data class SolicitudServicio(
 
     val fotoUrl: String = "",
 
-    val urgencia: String = "NORMAL",
+    val urgencia: String = UrgenciaServicio.NORMAL.name,
     val precioSugerido: Double = 0.0,
 
-    val estado: String = "PUBLICADA",
+    val estado: String = EstadoSolicitud.PUBLICADA.name,
     val tecnicoId: String? = null,
 
     val fechaCreacion: Long = 0L
