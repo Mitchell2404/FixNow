@@ -44,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.material3.Button
 
 @Composable
 fun SolicitudServicioScreen(
@@ -54,6 +55,7 @@ fun SolicitudServicioScreen(
     onTomarFoto: () -> Unit,
     onObtenerUbicacion: () -> Unit,
     onDireccionChange: (String) -> Unit,
+    onEnviarSolicitud: () -> Unit,
     onVolver: () -> Unit
 ) {
     var categoriasAbiertas by remember {
@@ -357,6 +359,43 @@ fun SolicitudServicioScreen(
                 )
             }
         }
+
+        state.errorEnvio?.let { mensaje ->
+            Text(
+                text = mensaje,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+
+        if (state.solicitudCreadaId != null) {
+            Text(
+                text = "Tu solicitud se registró correctamente.",
+                color = MaterialTheme.colorScheme.primary
+            )
+
+            Button(
+                onClick = onVolver,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("Volver al inicio")
+            }
+        } else {
+            Button(
+                onClick = onEnviarSolicitud,
+                enabled = !state.enviandoSolicitud &&
+                        !state.procesandoFoto &&
+                        !state.obteniendoUbicacion,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (state.enviandoSolicitud) {
+                        "Enviando solicitud…"
+                    } else {
+                        "Enviar solicitud"
+                    }
+                )
+            }
+        }
     }
 }
 
@@ -375,6 +414,7 @@ private fun SolicitudServicioScreenPreview() {
             onTomarFoto = {},
             onObtenerUbicacion = {},
             onDireccionChange = {},
+            onEnviarSolicitud = {},
             onVolver = {}
         )
     }

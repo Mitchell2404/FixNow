@@ -23,6 +23,103 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /solicitudes/{solicitudId} {
+
+      function esCliente() {
+        return request.auth != null
+          && exists(
+            /databases/$(database)/documents/users/$(request.auth.uid)
+          )
+          && get(
+            /databases/$(database)/documents/users/$(request.auth.uid)
+          ).data.get('rol', '') == 'cliente';
+      }
+
+      function precioValido(d) {
+        let tarifas = {
+          'DIAGNOSTICO': 30,
+          'MANTENIMIENTO': 60,
+          'HARDWARE': 50,
+          'SOFTWARE': 40,
+          'SISTEMA_OPERATIVO': 70,
+          'SEGURIDAD': 50
+        };
+
+        let recargos = {
+          'NORMAL': 0,
+          'PRIORITARIA': 15,
+          'URGENTE': 30
+        };
+
+        return d.categoriaId in tarifas
+          && d.urgencia in recargos
+          && d.precioSugerido is number
+          && d.precioSugerido ==
+            tarifas[d.categoriaId] + recargos[d.urgencia];
+      }
+
+      function datosValidos() {
+        let d = request.resource.data;
+
+        let campos = [
+          'id',
+          'clienteId',
+          'categoriaId',
+          'categoriaNombre',
+          'descripcion',
+          'latitud',
+          'longitud',
+          'direccion',
+          'fotoBase64',
+          'urgencia',
+          'precioSugerido',
+          'estado',
+          'tecnicoId',
+          'fechaCreacion'
+        ];
+
+        return d.keys().hasAll(campos)
+          && d.keys().hasOnly(campos)
+
+          && d.id == solicitudId
+          && d.clienteId == request.auth.uid
+
+          && d.categoriaId is string
+          && d.categoriaNombre is string
+          && d.urgencia is string
+
+          && d.descripcion is string
+          && d.descripcion.size() > 0
+          && d.descripcion.size() <= 2000
+
+          && d.direccion is string
+          && d.direccion.size() > 0
+
+          && d.latitud is number
+          && d.latitud >= -90
+          && d.latitud <= 90
+
+          && d.longitud is number
+          && d.longitud >= -180
+          && d.longitud <= 180
+
+          && d.fotoBase64 is string
+          && d.fotoBase64.size() <= 180000
+
+          && d.estado == 'PUBLICADA'
+          && d.tecnicoId == null
+
+          && d.fechaCreacion is timestamp
+          && d.fechaCreacion == request.time
+
+          && precioValido(d);
+      }
+
+      allow create: if esCliente() && datosValidos();
+
+      allow read, update, delete: if false;
+    }
+
     // Todo lo demás está cerrado hasta que una historia de usuario lo necesite.
     match /{document=**} {
       allow read, write: if false;

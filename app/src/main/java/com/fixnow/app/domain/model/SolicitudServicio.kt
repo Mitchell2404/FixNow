@@ -15,7 +15,7 @@ data class SolicitudServicio(
     val longitud: Double = 0.0,
     val direccion: String = "",
 
-    val fotoUrl: String = "",
+    val fotoBase64: String = "",
 
     val urgencia: String = UrgenciaServicio.NORMAL.name,
     val precioSugerido: Double = 0.0,

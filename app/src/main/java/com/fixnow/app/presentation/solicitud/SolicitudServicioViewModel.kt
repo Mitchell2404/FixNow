@@ -34,6 +34,8 @@ import java.util.Locale
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
+import com.fixnow.app.domain.model.SolicitudServicio
+import com.fixnow.app.domain.usecase.solicitud.CrearSolicitudUseCase
 
 data class SolicitudServicioUiState(
     val descripcion: String = "",
@@ -48,12 +50,16 @@ data class SolicitudServicioUiState(
     val direccion: String = "",
     val ubicacionAproximada: Boolean = false,
     val obteniendoUbicacion: Boolean = false,
-    val errorUbicacion: String? = null
+    val errorUbicacion: String? = null,
+    val enviandoSolicitud: Boolean = false,
+    val errorEnvio: String? = null,
+    val solicitudCreadaId: String? = null
 )
 
 @HiltViewModel
 class SolicitudServicioViewModel @Inject constructor(
     private val calcularPrecio: CalcularPrecioSugeridoUseCase,
+    private val crearSolicitud: CrearSolicitudUseCase,
     private val savedStateHandle: SavedStateHandle,
     private val imageEncoder: ImageEncoder,
     @ApplicationContext private val context: Context
@@ -312,7 +318,10 @@ class SolicitudServicioViewModel @Inject constructor(
                 procesandoFoto = actual.procesandoFoto,
                 errorFoto = actual.errorFoto,
                 obteniendoUbicacion = actual.obteniendoUbicacion,
-                errorUbicacion = actual.errorUbicacion
+                errorUbicacion = actual.errorUbicacion,
+                enviandoSolicitud = actual.enviandoSolicitud,
+                errorEnvio = actual.errorEnvio,
+                solicitudCreadaId = actual.solicitudCreadaId
             )
         }
     }
@@ -345,5 +354,86 @@ class SolicitudServicioViewModel @Inject constructor(
             ubicacionAproximada =
                 savedStateHandle.get<Boolean>("ubicacionAproximada") ?: false
         )
+    }
+
+    fun enviarSolicitud() {
+        val estado = _uiState.value
+
+        if (
+            estado.enviandoSolicitud ||
+            estado.solicitudCreadaId != null
+        ) return
+
+        if (estado.procesandoFoto || estado.obteniendoUbicacion) {
+            _uiState.update {
+                it.copy(
+                    errorEnvio = "Espera a que termine la foto o la ubicación."
+                )
+            }
+            return
+        }
+
+        val categoria = estado.categoria
+
+        if (categoria == null) {
+            _uiState.update {
+                it.copy(errorEnvio = "Selecciona una categoría.")
+            }
+            return
+        }
+
+        val latitud = estado.latitud
+        val longitud = estado.longitud
+
+        if (latitud == null || longitud == null) {
+            _uiState.update {
+                it.copy(errorEnvio = "Obtén la ubicación del servicio.")
+            }
+            return
+        }
+
+        // Tomamos los datos del formulario al pulsar Enviar.
+        val solicitud = SolicitudServicio(
+            categoriaId = categoria.name,
+            categoriaNombre = categoria.titulo,
+            descripcion = estado.descripcion,
+            latitud = latitud,
+            longitud = longitud,
+            direccion = estado.direccion,
+            fotoBase64 = estado.fotoBase64,
+            urgencia = estado.urgencia.name
+        )
+
+        // Bloquear inmediatamente otro envío desde este formulario.
+        _uiState.update {
+            it.copy(
+                enviandoSolicitud = true,
+                errorEnvio = null
+            )
+        }
+
+        viewModelScope.launch {
+            try {
+                crearSolicitud(solicitud).fold(
+                    onSuccess = { id ->
+                        _uiState.update {
+                            it.copy(solicitudCreadaId = id)
+                        }
+                    },
+                    onFailure = { error ->
+                        _uiState.update {
+                            it.copy(
+                                errorEnvio = error.message
+                                    ?: "No se pudo enviar la solicitud."
+                            )
+                        }
+                    }
+                )
+            } finally {
+                _uiState.update {
+                    it.copy(enviandoSolicitud = false)
+                }
+            }
+        }
     }
 }

@@ -10,6 +10,8 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import com.fixnow.app.data.repository.SolicitudRepositoryImpl
+import com.fixnow.app.domain.repository.SolicitudRepository
 
 /**
  * HU01: le dice a Hilt qué clase concreta usar cuando alguien pide una interfaz.
@@ -27,4 +29,9 @@ abstract class RepositoryModule {
 
     @Binds
     abstract fun bindBiometricSettingsRepository(impl: BiometricSettingsRepositoryImpl): BiometricSettingsRepository
+
+    @Binds
+    abstract fun bindSolicitudRepository(
+        impl: SolicitudRepositoryImpl
+    ): SolicitudRepository
 }

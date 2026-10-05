@@ -221,6 +221,7 @@ fun FixNowNavHost(
                     )
                 },
                 onDireccionChange = viewModel::cambiarDireccion,
+                onEnviarSolicitud = viewModel::enviarSolicitud,
                 onVolver = {
                     navController.popBackStack()
                 }
