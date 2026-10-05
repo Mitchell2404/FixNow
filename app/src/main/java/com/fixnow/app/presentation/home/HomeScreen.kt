@@ -27,6 +27,7 @@ import com.fixnow.app.presentation.theme.FixNowTheme
 fun HomeScreen(
     displayName: String,
     emailVerified: Boolean,
+    onNuevaSolicitud: () -> Unit,
     onProfile: () -> Unit,
     onDesignSystem: () -> Unit,
     onResendVerification: () -> Unit,
@@ -116,6 +117,13 @@ fun HomeScreen(
                 )
 
                 Button(
+                    onClick = onNuevaSolicitud,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Solicitar servicio")
+                }
+
+                Button(
                     onClick = onProfile,
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -152,6 +160,7 @@ private fun HomeVerifiedPreview() {
         HomeScreen(
             displayName = "Américo",
             emailVerified = true,
+            onNuevaSolicitud = {},
             onProfile = {},
             onDesignSystem = {},
             onResendVerification = {},
@@ -172,6 +181,7 @@ private fun HomeNotVerifiedPreview() {
         HomeScreen(
             displayName = "Américo",
             emailVerified = false,
+            onNuevaSolicitud = {},
             onProfile = {},
             onDesignSystem = {},
             onResendVerification = {},

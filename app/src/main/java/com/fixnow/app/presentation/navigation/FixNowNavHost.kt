@@ -42,6 +42,7 @@ import com.fixnow.app.presentation.profile.ProfileScreen
 import com.fixnow.app.presentation.profile.ProfileViewModel
 import kotlinx.coroutines.launch
 import java.io.File
+import com.fixnow.app.presentation.solicitud.SolicitudServicioScreen
 
 
 @Composable
@@ -108,6 +109,14 @@ fun FixNowNavHost(
         composable(Routes.DESIGN_SYSTEM) {
 
             DesignSystemScreen()
+        }
+
+        composable(Routes.NUEVA_SOLICITUD) {
+            SolicitudServicioScreen(
+                onVolver = {
+                    navController.popBackStack()
+                }
+            )
         }
     }
 }
@@ -407,6 +416,12 @@ private fun HomeRoute(
 
         emailVerified =
             state.emailVerified,
+
+        onNuevaSolicitud = {
+            navController.navigate(Routes.NUEVA_SOLICITUD) {
+                launchSingleTop = true
+            }
+        },
 
         onProfile = {
 
