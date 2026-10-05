@@ -31,6 +31,7 @@ fun HomeScreen(
     onProfile: () -> Unit,
     onDesignSystem: () -> Unit,
     onResendVerification: () -> Unit,
+    onMisSolicitudes: () -> Unit,
     onLogout: () -> Unit
 ) {
 
@@ -123,6 +124,13 @@ fun HomeScreen(
                     Text("Solicitar servicio")
                 }
 
+                OutlinedButton(
+                    onClick = onMisSolicitudes,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Mis solicitudes")
+                }
+
                 Button(
                     onClick = onProfile,
                     modifier = Modifier.fillMaxWidth()
@@ -164,6 +172,7 @@ private fun HomeVerifiedPreview() {
             onProfile = {},
             onDesignSystem = {},
             onResendVerification = {},
+            onMisSolicitudes = {},
             onLogout = {}
         )
     }
@@ -185,6 +194,7 @@ private fun HomeNotVerifiedPreview() {
             onProfile = {},
             onDesignSystem = {},
             onResendVerification = {},
+            onMisSolicitudes = {},
             onLogout = {}
         )
     }

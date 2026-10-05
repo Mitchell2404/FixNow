@@ -8,4 +8,10 @@ interface SolicitudRepository {
     suspend fun crearSolicitud(
         solicitud: SolicitudServicio
     ): Result<String>
+
+    suspend fun obtenerMisSolicitudes(): Result<List<SolicitudServicio>>
+
+    suspend fun cancelarSolicitud(
+        solicitudId: String
+    ): Result<Unit>
 }

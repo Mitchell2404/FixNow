@@ -7,4 +7,5 @@ object Routes {
     const val PROFILE = "profile"
     const val DESIGN_SYSTEM = "design_system"
     const val NUEVA_SOLICITUD = "nueva_solicitud"
+    const val MIS_SOLICITUDES = "mis_solicitudes"
 }

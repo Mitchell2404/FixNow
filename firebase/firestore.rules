@@ -117,7 +117,17 @@ service cloud.firestore {
 
       allow create: if esCliente() && datosValidos();
 
-      allow read, update, delete: if false;
+      allow update: if request.auth != null
+                    && resource.data.clienteId == request.auth.uid
+                    && resource.data.estado == 'PUBLICADA'
+                    && resource.data.tecnicoId == null
+                    && request.resource.data.estado == 'CANCELADA'
+                    && request.resource.data
+                         .diff(resource.data)
+                         .affectedKeys()
+                         .hasOnly(['estado']);
+
+      allow delete: if false;
     }
 
     // Todo lo demás está cerrado hasta que una historia de usuario lo necesite.

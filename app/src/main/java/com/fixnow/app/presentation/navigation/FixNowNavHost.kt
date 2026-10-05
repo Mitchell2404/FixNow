@@ -44,6 +44,8 @@ import kotlinx.coroutines.launch
 import java.io.File
 import com.fixnow.app.presentation.solicitud.SolicitudServicioScreen
 import com.fixnow.app.presentation.solicitud.SolicitudServicioViewModel
+import com.fixnow.app.presentation.solicitud.MisSolicitudesScreen
+import com.fixnow.app.presentation.solicitud.MisSolicitudesViewModel
 
 @Composable
 fun FixNowNavHost(
@@ -222,6 +224,21 @@ fun FixNowNavHost(
                 },
                 onDireccionChange = viewModel::cambiarDireccion,
                 onEnviarSolicitud = viewModel::enviarSolicitud,
+                onVolver = {
+                    navController.popBackStack()
+                }
+            )
+        }
+
+        composable(Routes.MIS_SOLICITUDES) {
+            val viewModel: MisSolicitudesViewModel = hiltViewModel()
+
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+            MisSolicitudesScreen(
+                state = state,
+                onActualizar = viewModel::cargarSolicitudes,
+                onCancelarSolicitud = viewModel::cancelarSolicitud,
                 onVolver = {
                     navController.popBackStack()
                 }
@@ -531,7 +548,11 @@ private fun HomeRoute(
                 launchSingleTop = true
             }
         },
-
+        onMisSolicitudes = {
+            navController.navigate(Routes.MIS_SOLICITUDES) {
+                launchSingleTop = true
+            }
+        },
         onProfile = {
 
             navController.navigate(
@@ -832,4 +853,5 @@ private fun ProfileRoute(
             }
         }
     )
+
 }
