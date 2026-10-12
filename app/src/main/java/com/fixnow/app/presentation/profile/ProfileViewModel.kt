@@ -9,6 +9,8 @@ import com.fixnow.app.domain.usecase.biometric.SetBiometricEnabledUseCase
 import com.fixnow.app.domain.usecase.profile.GetUserProfileUseCase
 import com.fixnow.app.domain.usecase.profile.UpdateProfileUseCase
 import com.fixnow.app.domain.usecase.profile.SaveProfilePhotoUseCase
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.ListenerRegistration
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,7 +25,10 @@ data class ProfileUiState(
     val isLoading: Boolean = true,
     val user: User? = null,
     val email: String = "",
-    val biometricEnabled: Boolean = false
+    val biometricEnabled: Boolean = false,
+    val promedioReputacion: Double = 0.0,
+    val totalCalificaciones: Int = 0,
+    val comentariosRecientes: List<String> = emptyList()
 )
 
 sealed class ProfileEvent {
@@ -32,6 +37,7 @@ sealed class ProfileEvent {
 
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
+    private val firestore: FirebaseFirestore,
     private val getCurrentUser: GetCurrentUserUseCase,
     private val getUserProfile: GetUserProfileUseCase,
     private val updateProfile: UpdateProfileUseCase,
@@ -46,10 +52,77 @@ class ProfileViewModel @Inject constructor(
     private val _events = Channel<ProfileEvent>(Channel.BUFFERED)
     val events = _events.receiveAsFlow()
 
+    private var profileListener: ListenerRegistration? = null
+    private var reputationListener: ListenerRegistration? = null
+    private var reviewsListener: ListenerRegistration? = null
+
     private val uid: String? get() = getCurrentUser()?.uid
 
     init {
         loadProfile()
+        observeProfile()
+    }
+
+    private fun observeProfile() {
+        val currentUid = uid ?: return
+        profileListener?.remove()
+        profileListener = firestore.collection("users")
+            .document(currentUid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    _events.trySend(ProfileEvent.ShowMessage(error.message ?: "No se pudo actualizar el perfil"))
+                    return@addSnapshotListener
+                }
+
+                val currentUser = snapshot?.toObject(User::class.java) ?: return@addSnapshotListener
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        user = currentUser,
+                        email = getCurrentUser()?.email ?: it.email,
+                        biometricEnabled = isBiometricEnabled()
+                    )
+                }
+            }
+        reputationListener = firestore.collection("reputaciones")
+            .document(currentUid)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    _events.trySend(ProfileEvent.ShowMessage(error.message ?: "No se pudo actualizar la reputación"))
+                    return@addSnapshotListener
+                }
+                val puntos = snapshot?.getLong("puntosReputacion") ?: 0L
+                val total = snapshot?.getLong("totalCalificaciones")?.toInt() ?: 0
+                _uiState.update {
+                    it.copy(
+                        promedioReputacion = if (total > 0) puntos.toDouble() / total else 0.0,
+                        totalCalificaciones = total
+                    )
+                }
+            }
+        reviewsListener = firestore.collection("users").document(currentUid)
+            .collection("valoraciones")
+            .orderBy("creadoEn", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .limit(5)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    _events.trySend(ProfileEvent.ShowMessage(error.message ?: "No se pudieron cargar las reseñas"))
+                    return@addSnapshotListener
+                }
+                val reviews = snapshot?.documents.orEmpty().mapNotNull { document ->
+                    val comentario = document.getString("comentario")?.trim().orEmpty()
+                    val estrellas = document.getLong("estrellas")?.toInt() ?: 0
+                    comentario.takeIf { it.isNotBlank() }?.let { "${"★".repeat(estrellas)} · $it" }
+                }
+                _uiState.update { it.copy(comentariosRecientes = reviews) }
+            }
+    }
+
+    override fun onCleared() {
+        profileListener?.remove()
+        reputationListener?.remove()
+        reviewsListener?.remove()
+        super.onCleared()
     }
 
     private fun loadProfile() {

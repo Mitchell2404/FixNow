@@ -15,6 +15,9 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -26,23 +29,23 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.material3.AlertDialog
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.saveable.rememberSaveable
+import com.fixnow.app.presentation.common.CalificacionDialog
 
 @Composable
 fun MisSolicitudesScreen(
     state: MisSolicitudesUiState,
     onActualizar: () -> Unit,
     onCancelarSolicitud: (String) -> Unit,
-    onVolver: () -> Unit
+    onVolver: () -> Unit,
+    onCalificar: (String, Int, String) -> Unit = { _, _, _ -> }
 ) {
     var solicitudPorCancelar by rememberSaveable {
         mutableStateOf<String?>(null)
     }
 
-    var mostrarAvisoTecnicos by rememberSaveable {
-        mutableStateOf(false)
+    var solicitudACalificar by rememberSaveable {
+        mutableStateOf<SolicitudServicio?>(null)
     }
 
     val idPorCancelar = solicitudPorCancelar
@@ -83,31 +86,16 @@ fun MisSolicitudesScreen(
         )
     }
 
-    if (mostrarAvisoTecnicos) {
-        AlertDialog(
-            onDismissRequest = {
-                mostrarAvisoTecnicos = false
-            },
-            title = {
-                Text("Técnicos interesados")
-            },
-            text = {
-                Text(
-                    "Esta función estará disponible cuando se conecten " +
-                            "las respuestas de los técnicos."
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        mostrarAvisoTecnicos = false
-                    }
-                ) {
-                    Text("Entendido")
-                }
+    CalificacionDialog(
+        visible = solicitudACalificar != null,
+        titulo = "Calificar al técnico",
+        onDismiss = { solicitudACalificar = null },
+        onEnviar = { estrellas, comentario ->
+            solicitudACalificar?.let {
+                onCalificar(it.id, estrellas, comentario)
             }
-        )
-    }
+        }
+    )
 
     Column(
         modifier = Modifier
@@ -177,8 +165,8 @@ fun MisSolicitudesScreen(
                 onCancelar = {
                     solicitudPorCancelar = solicitud.id
                 },
-                onVerTecnicos = {
-                    mostrarAvisoTecnicos = true
+                onCalificar = {
+                    solicitudACalificar = solicitud
                 }
             )
             }
@@ -191,7 +179,7 @@ private fun SolicitudCard(solicitud: SolicitudServicio,
                           cancelando: Boolean,
                           accionesHabilitadas: Boolean,
                           onCancelar: () -> Unit,
-                          onVerTecnicos: () -> Unit) {
+                          onCalificar: () -> Unit) {
     val estado = EstadoSolicitud.entries.firstOrNull {
         it.name == solicitud.estado
     }?.titulo ?: solicitud.estado.ifBlank { "Sin estado" }
@@ -250,14 +238,6 @@ private fun SolicitudCard(solicitud: SolicitudServicio,
                 solicitud.estado == EstadoSolicitud.PUBLICADA.name &&
                 solicitud.tecnicoId == null
             ) {
-                OutlinedButton(
-                    onClick = onVerTecnicos,
-                    enabled = accionesHabilitadas,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Ver técnicos interesados")
-                }
-
                 TextButton(
                     onClick = onCancelar,
                     enabled = accionesHabilitadas,
@@ -271,6 +251,27 @@ private fun SolicitudCard(solicitud: SolicitudServicio,
                         },
                         color = MaterialTheme.colorScheme.error
                     )
+                }
+            }
+
+            if (solicitud.comentarioEstado.isNotBlank()) {
+                Text("Actualización del técnico: ${solicitud.comentarioEstado}")
+            }
+
+            if (solicitud.estado in setOf(
+                    EstadoSolicitud.FINALIZADA.name,
+                    EstadoSolicitud.CANCELADA.name
+                ) && solicitud.tecnicoId != null
+            ) {
+                if (!solicitud.calificadoPorCliente) {
+                    OutlinedButton(
+                        onClick = onCalificar,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Calificar técnico")
+                    }
+                } else {
+                    Text("Técnico calificado", style = MaterialTheme.typography.bodySmall)
                 }
             }
         }

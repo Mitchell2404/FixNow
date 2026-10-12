@@ -32,6 +32,9 @@ fun HomeScreen(
     onDesignSystem: () -> Unit,
     onResendVerification: () -> Unit,
     onMisSolicitudes: () -> Unit,
+    esTecnico: Boolean,
+    esAdmin: Boolean,
+    onSolicitudesTecnico: () -> Unit,
     onLogout: () -> Unit
 ) {
 
@@ -80,7 +83,7 @@ fun HomeScreen(
                 )
 
                 Text(
-                    text = "¿Qué se te malogró hoy?",
+                    text = if (esTecnico) "Solicitudes de servicio cercanas" else "¿Qué se te malogró hoy?",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -117,18 +120,29 @@ fun HomeScreen(
                     modifier = Modifier.height(16.dp)
                 )
 
-                Button(
-                    onClick = onNuevaSolicitud,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Solicitar servicio")
+                if (!esTecnico || esAdmin) {
+                    Button(
+                        onClick = onNuevaSolicitud,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Solicitar servicio")
+                    }
+
+                    OutlinedButton(
+                        onClick = onMisSolicitudes,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Mis solicitudes")
+                    }
                 }
 
-                OutlinedButton(
-                    onClick = onMisSolicitudes,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Mis solicitudes")
+                if (esTecnico || esAdmin) {
+                    Button(
+                        onClick = onSolicitudesTecnico,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Solicitudes de técnico")
+                    }
                 }
 
                 Button(
@@ -138,11 +152,13 @@ fun HomeScreen(
                     Text("Mi perfil")
                 }
 
-                FilledTonalButton(
-                    onClick = onDesignSystem,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Ver sistema de diseño")
+                if (esAdmin) {
+                    FilledTonalButton(
+                        onClick = onDesignSystem,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Ver sistema de diseño")
+                    }
                 }
 
                 OutlinedButton(
@@ -173,6 +189,9 @@ private fun HomeVerifiedPreview() {
             onDesignSystem = {},
             onResendVerification = {},
             onMisSolicitudes = {},
+            esTecnico = false,
+            esAdmin = false,
+            onSolicitudesTecnico = {},
             onLogout = {}
         )
     }
@@ -195,6 +214,9 @@ private fun HomeNotVerifiedPreview() {
             onDesignSystem = {},
             onResendVerification = {},
             onMisSolicitudes = {},
+            esTecnico = false,
+            esAdmin = false,
+            onSolicitudesTecnico = {},
             onLogout = {}
         )
     }

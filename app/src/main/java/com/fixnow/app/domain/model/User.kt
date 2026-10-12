@@ -16,7 +16,11 @@ data class User(
     val rol: String = ROL_CLIENTE,
     val notificacionesActivas: Boolean = true,
     val biometriaActivada: Boolean = false,
-    val creadoEn: Long = System.currentTimeMillis()
+    val creadoEn: Long = System.currentTimeMillis(),
+    val scoreReputacion: Double = 0.0,
+    val totalCalificaciones: Int = 0,
+    val ultimaValoracion: Long = 0L,
+    val comentariosRecientes: List<String> = emptyList()
 ) {
     companion object {
         const val ROL_CLIENTE = "cliente"

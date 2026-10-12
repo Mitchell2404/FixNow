@@ -19,7 +19,9 @@ import javax.inject.Inject
 
 data class HomeUiState(
     val displayName: String = "",
-    val emailVerified: Boolean = true
+    val emailVerified: Boolean = true,
+    val esTecnico: Boolean = false,
+    val esAdmin: Boolean = false
 )
 
 sealed class HomeEvent {
@@ -45,11 +47,14 @@ class HomeViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             val user = refreshCurrentUser() ?: getCurrentUser() ?: return@launch
-            val nombre = getUserProfile(user.uid).getOrNull()?.nombre.orEmpty()
+            val profile = getUserProfile(user.uid).getOrNull()
+            val nombre = profile?.nombre.orEmpty()
             _uiState.update {
                 it.copy(
                     displayName = nombre.ifBlank { user.email },
-                    emailVerified = user.isEmailVerified
+                    emailVerified = user.isEmailVerified,
+                    esTecnico = profile?.rol == "tecnico",
+                    esAdmin = profile?.rol == "admin"
                 )
             }
         }

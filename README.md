@@ -1,4 +1,4 @@
-# FixNow – Proyecto base (HU01 a HU06)
+# FixNow – Proyecto base (HU01 a HU08)
 
 Proyecto Android completo (Kotlin + MVVM + Firebase + Material 3). Reemplaza el zip anterior de HU04–06: ya incluye esas historias integradas sobre la base de HU01–03.
 
@@ -10,6 +10,7 @@ Proyecto Android completo (Kotlin + MVVM + Firebase + Material 3). Reemplaza el 
 | **HU04** Registro y login | Correo y contraseña, verificación de correo, recuperar contraseña, sesión persistente. |
 | **HU05** Perfil | Nombre, foto con la cámara (miniatura guardada en Firestore), preferencia de notificaciones. |
 | **HU06** Huella | `BiometricPrompt`, activar/desactivar desde el perfil, contraseña como alternativa. |
+| **HU08** Solicitudes para técnicos | Bandeja en tiempo real, foto/detalles, filtro por cercanía y orden, mapa MapLibre, geocodificación Retrofit y avisos FCM desde Cloud Functions. |
 
 > No pude compilar el proyecto en mi entorno (no tiene el SDK de Android). Está revisado a mano y con verificaciones automáticas de XML e IDs, pero si Android Studio marca algún error al sincronizar, pásamelo tal cual y lo corregimos.
 
@@ -18,6 +19,7 @@ Proyecto Android completo (Kotlin + MVVM + Firebase + Material 3). Reemplaza el 
 ### 1. Requisitos
 - Android Studio (versión estable reciente). Usa su JDK integrado (17).
 - Un teléfono o emulador con Android 8.0 (API 26) o superior.
+- Node.js 22 LTS y npm solo para desplegar Cloud Functions y los índices de Firebase.
 
 ### 2. Crear el proyecto en Firebase
 1. Entra a [console.firebase.google.com](https://console.firebase.google.com) → **Agregar proyecto** → nombre `FixNow`.
@@ -27,14 +29,51 @@ Proyecto Android completo (Kotlin + MVVM + Firebase + Material 3). Reemplaza el 
 5. En **Firestore Database → Crear base de datos** (modo producción).
 6. Pega las reglas de seguridad: Firestore → pestaña *Reglas* → contenido de `firebase/firestore.rules` → *Publicar*.
 
-Deja el proyecto en el plan **Spark** (gratuito). No actives Storage ni pases a Blaze: no hace falta.
+Auth y Firestore pueden seguir en Spark. Para que Cloud Functions envíe avisos FCM automáticamente, Firebase exige el plan **Blaze** con una cuenta de facturación. Esta funcionalidad no usa Firebase Storage.
 
-### 3. Abrir en Android Studio
+### 3. Activar las solicitudes para técnicos
+1. Instala Node.js 22 LTS desde [nodejs.org](https://nodejs.org/en/download) y reinicia VS Code para que su terminal actualice el `PATH`.
+2. Comprueba que Windows encuentra Node y npm:
+	```powershell
+	node --version
+	npm --version
+	```
+	Si alguno dice que el comando no existe, Node no quedó instalado en el `PATH`; no continúes hasta que ambos comandos respondan.
+3. Instala Firebase CLI, inicia sesión y selecciona el mismo proyecto cuyo archivo `app/google-services.json` usa la app:
+	```powershell
+	npm install -g firebase-tools
+	firebase login
+	firebase projects:list
+	firebase use <project-id>
+	Push-Location firebase/functions
+	npm install
+	Pop-Location
+	firebase deploy --only firestore:rules,firestore:indexes,functions
+	```
+4. En Firebase Console asigna `rol: "tecnico"` al documento `users/{uid}` de cada técnico aprobado. La app no permite autoasignarse ese rol.
+5. Abre la app con la cuenta técnica y permite ubicación y notificaciones. La app registra la posición al abrir la bandeja; FCM la considera válida durante 12 horas y envía avisos a técnicos dentro de 50 km.
+6. En Android Studio ejecuta la app. El técnico verá **Solicitudes cercanas** en Home; podrá ver la foto, descripción, precio, urgencia, dirección y fecha, y alternar entre lista y mapa.
+
+### 4. Firebase Cloud Messaging, paso a paso
+1. En **Project settings → General**, confirma que la app Android registrada tiene el paquete `com.fixnow.app` y que `app/google-services.json` corresponde a ese mismo proyecto Firebase. Si descargas otro JSON, reemplázalo solo si estás seguro de que es del proyecto correcto.
+2. FCM ya queda habilitado al registrar la app Android. No hay que activar un interruptor adicional ni pegar una clave de servidor en Android. La Cloud Function usa Firebase Admin con la identidad segura de Google Cloud; nunca descargues ni incluyas una clave de cuenta de servicio en la app.
+3. Confirma que el proyecto está en Blaze y que completaste el despliegue del paso anterior. El comando despliega reglas, índices y la función `notifyNearbyTechnicians`, que escucha la creación de documentos en `solicitudes`.
+4. Inicia sesión en un dispositivo como técnico aprobado, abre **Solicitudes cercanas** y acepta los permisos de ubicación y notificaciones. La app guarda el token FCM en `users/{uid}/fcmTokens` y la última ubicación en el perfil del técnico.
+5. Desde otro usuario crea una solicitud publicada dentro de 50 km. La función busca técnicos con rol `tecnico`, notificaciones activas y ubicación actualizada en las últimas 12 horas; envía el aviso solo a esos dispositivos. Toca el aviso para abrir la bandeja.
+6. Prueba tanto con la app abierta como en segundo plano. Para revisar fallos, mira **Functions → Logs** en Firebase Console y el filtro `FixNowFCM` en Logcat. Un índice recién desplegado puede tardar unos minutos en quedar **Enabled**; hasta entonces, espera y vuelve a probar la consulta.
+
+La consola **Messaging → Send test message** sirve para probar un token manualmente, pero no sustituye la prueba anterior: el flujo real de FixNow depende de que la solicitud se cree y la Cloud Function filtre por rol y distancia.
+
+Las fotos de solicitudes y perfil se guardan como Base64 en Firestore. **Este proyecto no usa Firebase Storage ni Cloud Storage.**
+
+El mapa usa un estilo público de demostración de MapLibre y Nominatim/OpenStreetMap para la dirección inversa. Para producción, configura un proveedor de tiles con su URL y atribución; las consultas Nominatim se limitan a una por segundo.
+
+### 5. Abrir en Android Studio
 1. **File → Open** y elige la carpeta `FixNow`.
 2. Espera a que termine el *Gradle Sync*. Si sugiere actualizar Gradle o el plugin de Android, puedes aceptar; **no actualices Kotlin ni Hilt a ciegas** porque van casados entre sí.
 3. Presiona **Run ▶**.
 
-### 4. Cómo comprobar cada historia (criterios de aceptación)
+### 6. Cómo comprobar cada historia (criterios de aceptación)
 
 **HU01 – Arquitectura**
 - [ ] Los paquetes son `data`, `domain`, `presentation` (más `di`, `core`, `service`).
@@ -50,7 +89,7 @@ Deja el proyecto en el plan **Spark** (gratuito). No actives Storage ni pases a 
 **HU03 – Firebase**
 - [ ] La app abre sin errores de Firebase en Logcat.
 - [ ] Al registrarte aparece el usuario en *Authentication* y su documento en *Firestore → users*.
-- [ ] Notificaciones: con la app en debug, busca en Logcat el filtro `FixNowFCM` y copia el token. En Firebase Console → *Messaging* → *Enviar mensaje de prueba* pégalo. Ojo: con la app abierta Android no muestra la notificación; ciérrala (segundo plano) para verla. Mostrarla con la app abierta llega en HU08.
+- [ ] El token FCM se guarda al abrir la bandeja técnica y la app muestra avisos también en primer plano.
 
 **HU04 – Registro/login**
 - [ ] Registrarte → llega el correo de verificación (revisa spam). En Home aparece el aviso "Verifica tu correo".
@@ -69,6 +108,12 @@ Deja el proyecto en el plan **Spark** (gratuito). No actives Storage ni pases a 
 - [ ] Cierra y abre la app: pide la huella al entrar.
 - [ ] Si tocas "Usar contraseña", puedes ingresar con correo y contraseña.
 - [ ] En un dispositivo sin huella, el interruptor aparece deshabilitado.
+
+**HU08 – Recepción por técnico**
+- [ ] Asigna `rol: "tecnico"` desde Firebase Console; inicia sesión con esa cuenta y permite ubicación/notificaciones.
+- [ ] Crea una solicitud desde una cuenta cliente a menos de 50 km; el técnico recibe un push y la solicitud aparece en tiempo real.
+- [ ] Comprueba foto, descripción, categoría, precio sugerido, urgencia, dirección y fecha; alterna lista/mapa y prueba los tres órdenes.
+- [ ] Si la ubicación tiene más de 12 horas, vuelve a abrir la bandeja para actualizarla antes de probar el push.
 
 ## Estructura
 
@@ -117,4 +162,4 @@ Como el resto del código depende de la interfaz `ProfileRepository`, si algún 
 
 ## Siguiente paso sugerido
 
-HU07 (solicitud de servicio del cliente): sigue la receta de `docs/ARQUITECTURA.md`, sección "Cómo agregar una funcionalidad nueva".
+Para producción, configura un proveedor de mapas, revisa las cuotas del plan Blaze y amplía el flujo de aceptación/rechazo de solicitudes según la siguiente historia de usuario.

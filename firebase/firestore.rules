@@ -18,9 +18,58 @@ service cloud.firestore {
       allow update: if request.auth != null
                     && request.auth.uid == uid
                     && request.resource.data.get('rol', 'cliente') == resource.data.get('rol', 'cliente')
-                    && request.resource.data.get('fotoBase64', '').size() < 200000;
+                    && request.resource.data.get('fotoBase64', '').size() < 200000
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['nombre', 'notificacionesActivas', 'fotoBase64', 'biometriaActivada']);
 
       allow delete: if false;
+
+      match /valoraciones/{valoracionId} {
+        function valoracionValida() {
+          let requestPath = /databases/$(database)/documents/solicitudes/$(valoracionId);
+          let summaryPath = /databases/$(database)/documents/reputaciones/$(uid);
+          let solicitud = getAfter(requestPath).data;
+          let resumen = getAfter(summaryPath).data;
+          return request.auth != null
+            && valoracionId == request.resource.data.solicitudId
+            && request.resource.data.keys().hasOnly(['solicitudId', 'autorUid', 'estrellas', 'comentario', 'creadoEn'])
+            && request.resource.data.autorUid == request.auth.uid
+            && request.resource.data.estrellas is int
+            && request.resource.data.estrellas >= 1
+            && request.resource.data.estrellas <= 5
+            && request.resource.data.comentario is string
+            && request.resource.data.comentario.size() > 0
+            && request.resource.data.comentario.size() <= 500
+            && request.resource.data.creadoEn == request.time
+            && existsAfter(requestPath)
+            && existsAfter(summaryPath)
+            && resumen.ultimaSolicitudId == valoracionId
+            && solicitud.estado in ['FINALIZADA', 'CANCELADA']
+            && (
+              (solicitud.tecnicoId == uid
+                && solicitud.clienteId == request.auth.uid
+                && solicitud.calificadoPorCliente == true
+                && solicitud.calificacionCliente == request.resource.data.estrellas)
+              ||
+              (solicitud.clienteId == uid
+                && solicitud.tecnicoId == request.auth.uid
+                && solicitud.calificadoPorTecnico == true
+                && solicitud.calificacionTecnico == request.resource.data.estrellas)
+            );
+        }
+
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create: if valoracionValida();
+        allow update, delete: if false;
+      }
+
+      match /fcmTokens/{tokenId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow create, update: if request.auth != null
+                              && request.auth.uid == uid
+                              && request.resource.data.token == tokenId;
+        allow delete: if request.auth != null && request.auth.uid == uid;
+      }
     }
 
     match /solicitudes/{solicitudId} {
@@ -33,6 +82,22 @@ service cloud.firestore {
           && get(
             /databases/$(database)/documents/users/$(request.auth.uid)
           ).data.get('rol', '') == 'cliente';
+      }
+
+      function esTecnico() {
+        return request.auth != null
+          && exists(
+            /databases/$(database)/documents/users/$(request.auth.uid)
+          )
+          && get(
+            /databases/$(database)/documents/users/$(request.auth.uid)
+          ).data.get('rol', '') == 'tecnico';
+      }
+
+      function esAdmin() {
+        return request.auth != null
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('rol', '') == 'admin';
       }
 
       function precioValido(d) {
@@ -115,18 +180,128 @@ service cloud.firestore {
           && precioValido(d);
       }
 
-      allow create: if esCliente() && datosValidos();
+      allow create: if (esCliente() || esAdmin()) && datosValidos();
 
-      allow update: if request.auth != null
-                    && resource.data.clienteId == request.auth.uid
-                    && resource.data.estado == 'PUBLICADA'
-                    && resource.data.tecnicoId == null
-                    && request.resource.data.estado == 'CANCELADA'
-                    && request.resource.data
-                         .diff(resource.data)
-                         .affectedKeys()
-                         .hasOnly(['estado']);
+      allow read: if (request.auth != null
+                    && resource.data.clienteId == request.auth.uid)
+                  || (esTecnico()
+                      && (resource.data.tecnicoId == request.auth.uid
+                          || (resource.data.estado == 'PUBLICADA'
+                              && resource.data.tecnicoId == null)))
+                  || esAdmin();
 
+      function ratingAggregateIsValid(uid, esCalificacionCliente) {
+        let summaryPath = /databases/$(database)/documents/reputaciones/$(uid);
+        let summary = getAfter(summaryPath).data;
+        return existsAfter(summaryPath)
+          && summary.ultimaSolicitudId == solicitudId
+          && summary.totalCalificaciones is int
+          && summary.puntosReputacion is int
+          && (
+            (esCalificacionCliente
+              && request.auth.uid == resource.data.clienteId
+              && resource.data.tecnicoId == uid
+              && request.resource.data.calificadoPorCliente == true
+              && request.resource.data.calificacionCliente is int
+              && request.resource.data.calificacionCliente >= 1
+              && request.resource.data.calificacionCliente <= 5)
+            ||
+            (!esCalificacionCliente
+              && request.auth.uid == resource.data.tecnicoId
+              && resource.data.clienteId == uid
+              && request.resource.data.calificadoPorTecnico == true
+              && request.resource.data.calificacionTecnico is int
+              && request.resource.data.calificacionTecnico >= 1
+              && request.resource.data.calificacionTecnico <= 5)
+          );
+      }
+
+      allow update: if request.auth != null && (
+        (resource.data.clienteId == request.auth.uid
+          && resource.data.estado == 'PUBLICADA'
+          && resource.data.tecnicoId == null
+          && request.resource.data.estado == 'CANCELADA'
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['estado']))
+        ||
+        ((esTecnico() || esAdmin())
+          && resource.data.estado == 'PUBLICADA'
+          && resource.data.tecnicoId == null
+          && request.resource.data.estado == 'ACEPTADA'
+          && request.resource.data.tecnicoId == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['estado', 'tecnicoId', 'comentarioEstado']))
+        ||
+        ((esTecnico() || esAdmin())
+          && resource.data.tecnicoId == request.auth.uid
+          && (
+            (resource.data.estado == 'ACEPTADA'
+              && request.resource.data.estado in ['EN_PROCESO', 'CANCELADA'])
+            || (resource.data.estado == 'EN_PROCESO'
+              && request.resource.data.estado in ['FINALIZADA', 'CANCELADA'])
+            || (resource.data.estado == request.resource.data.estado
+              && request.resource.data.get('comentarioEstado', '').size() > 0)
+          )
+          && request.resource.data.get('comentarioEstado', '').size() <= 500
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['estado', 'comentarioEstado']))
+        ||
+        (resource.data.clienteId == request.auth.uid
+          && resource.data.tecnicoId != null
+          && resource.data.estado in ['FINALIZADA', 'CANCELADA']
+          && resource.data.get('calificadoPorCliente', false) != true
+          && request.resource.data.calificadoPorCliente == true
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['calificacionCliente', 'calificadoPorCliente', 'calificadoEnCliente'])
+          && ratingAggregateIsValid(resource.data.tecnicoId, true))
+        ||
+        (resource.data.tecnicoId == request.auth.uid
+          && resource.data.estado in ['FINALIZADA', 'CANCELADA']
+          && resource.data.get('calificadoPorTecnico', false) != true
+          && request.resource.data.calificadoPorTecnico == true
+          && request.resource.data.diff(resource.data).affectedKeys()
+               .hasOnly(['calificacionTecnico', 'calificadoPorTecnico', 'calificadoEnTecnico'])
+          && ratingAggregateIsValid(resource.data.clienteId, false))
+      );
+
+      allow delete: if false;
+    }
+
+    match /reputaciones/{uid} {
+      function ratingRequest() {
+        let ratingId = request.resource.data.get('ultimaSolicitudId', '');
+        let requestPath = /databases/$(database)/documents/solicitudes/$(ratingId);
+        let solicitud = getAfter(requestPath).data;
+        return request.auth != null
+          && ratingId is string
+          && ratingId.size() > 0
+          && existsAfter(requestPath)
+          && solicitud.estado in ['FINALIZADA', 'CANCELADA']
+          && (
+            (solicitud.tecnicoId == uid
+              && solicitud.clienteId == request.auth.uid
+              && solicitud.calificadoPorCliente == true
+              && solicitud.calificacionCliente is int)
+            ||
+            (solicitud.clienteId == uid
+              && solicitud.tecnicoId == request.auth.uid
+              && solicitud.calificadoPorTecnico == true
+              && solicitud.calificacionTecnico is int)
+          );
+      }
+
+      allow read: if request.auth != null;
+      allow create: if ratingRequest()
+                    && request.resource.data.get('uid', '') == uid
+                    && request.resource.data.totalCalificaciones == 1
+                    && request.resource.data.puntosReputacion >= 1
+                    && request.resource.data.puntosReputacion <= 5;
+      allow update: if ratingRequest()
+                    && request.resource.data.get('uid', '') == uid
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['uid', 'puntosReputacion', 'totalCalificaciones', 'ultimaValoracion', 'ultimaSolicitudId'])
+                    && request.resource.data.totalCalificaciones == resource.data.totalCalificaciones + 1
+                    && request.resource.data.puntosReputacion > resource.data.puntosReputacion
+                    && request.resource.data.puntosReputacion <= resource.data.puntosReputacion + 5;
       allow delete: if false;
     }
 

@@ -18,9 +18,16 @@ fun DocumentSnapshot.toSolicitudServicio(): SolicitudServicio {
         precioSugerido = getDouble("precioSugerido") ?: 0.0,
         estado = getString("estado").orEmpty(),
         tecnicoId = getString("tecnicoId"),
+        comentarioEstado = getString("comentarioEstado").orEmpty(),
         fechaCreacion = getTimestamp("fechaCreacion")
             ?.toDate()
             ?.time
-            ?: 0L
+            ?: 0L,
+        calificacionCliente = getLong("calificacionCliente")?.toInt(),
+        comentarioCliente = getString("comentarioCliente").orEmpty(),
+        calificacionTecnico = getLong("calificacionTecnico")?.toInt(),
+        comentarioTecnico = getString("comentarioTecnico").orEmpty(),
+        calificadoPorCliente = getBoolean("calificadoPorCliente") ?: false,
+        calificadoPorTecnico = getBoolean("calificadoPorTecnico") ?: false
     )
 }

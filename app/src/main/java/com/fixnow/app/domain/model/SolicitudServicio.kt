@@ -22,6 +22,14 @@ data class SolicitudServicio(
 
     val estado: String = EstadoSolicitud.PUBLICADA.name,
     val tecnicoId: String? = null,
+    val comentarioEstado: String = "",
 
-    val fechaCreacion: Long = 0L
+    val fechaCreacion: Long = 0L,
+
+    val calificacionCliente: Int? = null,
+    val comentarioCliente: String = "",
+    val calificacionTecnico: Int? = null,
+    val comentarioTecnico: String = "",
+    val calificadoPorCliente: Boolean = false,
+    val calificadoPorTecnico: Boolean = false
 )

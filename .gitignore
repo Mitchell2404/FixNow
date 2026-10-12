@@ -10,3 +10,4 @@
 .cxx
 *.apk
 *.aab
+/firebase/functions/node_modules/

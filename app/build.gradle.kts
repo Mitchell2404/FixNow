@@ -114,12 +114,14 @@ dependencies {
     // Obtener la ubicación del dispositivo
     implementation("com.google.android.gms:play-services-location:21.3.0")
 
-    // Mapa para seleccionar la ubicación del servicio
-    implementation("org.maplibre.gl:android-sdk:11.0.0")
+    // Reintentos automáticos de envío cuando vuelve la red
+    implementation("androidx.work:work-runtime-ktx:2.9.1")
 
-// Mapa para seleccionar la ubicación del servicio
+    // Mapa para seleccionar la ubicación del servicio
     implementation("org.maplibre.gl:android-sdk:11.0.0")
 
 // Identificar las solicitudes de mapas como provenientes de FixNow
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
 }

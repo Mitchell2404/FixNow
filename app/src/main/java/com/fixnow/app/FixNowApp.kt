@@ -2,7 +2,9 @@ package com.fixnow.app
 
 import android.app.Application
 import android.util.Log
+import com.fixnow.app.work.SolicitudSyncScheduler
 import com.google.firebase.messaging.FirebaseMessaging
+import org.maplibre.android.MapLibre
 import dagger.hilt.android.HiltAndroidApp
 
 
@@ -12,6 +14,8 @@ class FixNowApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        MapLibre.getInstance(this)
+        SolicitudSyncScheduler.enqueue(this)
         logFcmTokenInDebug()
     }
 

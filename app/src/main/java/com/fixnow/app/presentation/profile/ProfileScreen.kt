@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -52,7 +54,10 @@ fun ProfileScreen(
     onTakePhoto: () -> Unit,
     onSaveProfile: (String, Boolean) -> Unit,
     onNotificationsChanged: (Boolean) -> Unit,
-    onBiometricChanged: (Boolean) -> Unit
+    onBiometricChanged: (Boolean) -> Unit,
+    promedioReputacion: Double = 0.0,
+    totalCalificaciones: Int = 0,
+    comentariosRecientes: List<String> = emptyList()
 ) {
 
     var name by rememberSaveable {
@@ -160,6 +165,14 @@ fun ProfileScreen(
             )
         }
 
+        ReputacionCard(
+            promedio = promedioReputacion.takeIf { totalCalificaciones > 0 }
+                ?: user?.scoreReputacion ?: 0.0,
+            totalCalificaciones = totalCalificaciones.takeIf { it > 0 }
+                ?: user?.totalCalificaciones ?: 0,
+            comentarios = comentariosRecientes.ifEmpty { user?.comentariosRecientes ?: emptyList() }
+        )
+
         Button(
             onClick = {
                 onSaveProfile(
@@ -179,6 +192,78 @@ fun ProfileScreen(
             CircularProgressIndicator(
                 modifier = Modifier.padding(8.dp)
             )
+        }
+    }
+}
+
+@Composable
+private fun ReputacionCard(
+    promedio: Double,
+    totalCalificaciones: Int,
+    comentarios: List<String>
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text(
+                text = "Reputación",
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    repeat(5) { index ->
+                        Text(
+                            text = "★",
+                            color = if (promedio >= index + 1) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.outlineVariant
+                            },
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                }
+                Text(
+                    text = String.format("%.1f", promedio),
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Text(
+                    text = "/ 5",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Text(
+                text = "$totalCalificaciones valoraciones recibidas",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (comentarios.isNotEmpty()) {
+                Text(
+                    text = "Comentarios recientes",
+                    style = MaterialTheme.typography.labelLarge
+                )
+
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    comentarios.take(3).forEach { comentario ->
+                        Text(
+                            text = "• $comentario",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
         }
     }
 }

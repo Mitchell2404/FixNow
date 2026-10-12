@@ -11,6 +11,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -46,6 +47,9 @@ import com.fixnow.app.presentation.solicitud.SolicitudServicioScreen
 import com.fixnow.app.presentation.solicitud.SolicitudServicioViewModel
 import com.fixnow.app.presentation.solicitud.MisSolicitudesScreen
 import com.fixnow.app.presentation.solicitud.MisSolicitudesViewModel
+import com.fixnow.app.presentation.tecnico.SolicitudesTecnicoScreen
+import com.fixnow.app.presentation.tecnico.SolicitudesTecnicoViewModel
+import com.fixnow.app.presentation.tecnico.TecnicoEvent
 
 @Composable
 fun FixNowNavHost(
@@ -239,9 +243,77 @@ fun FixNowNavHost(
                 state = state,
                 onActualizar = viewModel::cargarSolicitudes,
                 onCancelarSolicitud = viewModel::cancelarSolicitud,
+                onCalificar = { solicitudId, estrellas, comentario ->
+                    viewModel.calificarSolicitud(solicitudId, estrellas, comentario)
+                },
                 onVolver = {
                     navController.popBackStack()
                 }
+            )
+        }
+
+        composable(Routes.SOLICITUDES_TECNICO) {
+            val viewModel: SolicitudesTecnicoViewModel = hiltViewModel()
+            val state by viewModel.uiState.collectAsStateWithLifecycle()
+            val context = LocalContext.current
+            val locationClient = remember(context) {
+                com.google.android.gms.location.LocationServices
+                    .getFusedLocationProviderClient(context)
+            }
+
+            val notificationPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { }
+            val locationPermissionLauncher = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestMultiplePermissions()
+            ) { permissions ->
+                if (permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                    permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+                ) {
+                    locationClient.getCurrentLocation(
+                        com.google.android.gms.location.Priority.PRIORITY_BALANCED_POWER_ACCURACY,
+                        null
+                    ).addOnSuccessListener { location ->
+                        if (location != null) {
+                            viewModel.actualizarUbicacion(location.latitude, location.longitude)
+                        }
+                    }
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+
+            LaunchedEffect(Unit) {
+                viewModel.registrarTokenFcm()
+                locationPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
+            }
+
+            LaunchedEffect(viewModel) {
+                viewModel.events.collect { event ->
+                    when (event) {
+                        is TecnicoEvent.ShowMessage -> snackbarHostState.showSnackbar(event.message)
+                    }
+                }
+            }
+
+            SolicitudesTecnicoScreen(
+                state = state,
+                onSortChange = viewModel::cambiarOrden,
+                onViewChange = viewModel::cambiarVista,
+                onSelect = viewModel::seleccionarSolicitud,
+                onShowMyRequests = viewModel::mostrarMisSolicitudes,
+                onAccept = viewModel::aceptarSolicitud,
+                onUpdateRequest = { solicitud, estado, comentario ->
+                    viewModel.actualizarSolicitud(solicitud, estado, comentario)
+                },
+                onRateClient = viewModel::calificarCliente,
+                onBack = { navController.popBackStack() }
             )
         }
     }
@@ -543,6 +615,15 @@ private fun HomeRoute(
         emailVerified =
             state.emailVerified,
 
+        esTecnico = state.esTecnico,
+        esAdmin = state.esAdmin,
+
+        onSolicitudesTecnico = {
+            navController.navigate(Routes.SOLICITUDES_TECNICO) {
+                launchSingleTop = true
+            }
+        },
+
         onNuevaSolicitud = {
             navController.navigate(Routes.NUEVA_SOLICITUD) {
                 launchSingleTop = true
@@ -764,6 +845,10 @@ private fun ProfileRoute(
 
         biometricSupported =
             biometricSupported,
+
+        promedioReputacion = state.promedioReputacion,
+        totalCalificaciones = state.totalCalificaciones,
+        comentariosRecientes = state.comentariosRecientes,
 
 
         // Tomar foto

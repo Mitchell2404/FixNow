@@ -3,10 +3,12 @@ package com.fixnow.app.presentation.solicitud
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.fixnow.app.domain.model.SolicitudServicio
+import com.fixnow.app.domain.repository.SolicitudRepository
 import com.fixnow.app.domain.usecase.solicitud.ObtenerMisSolicitudesUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -24,7 +26,8 @@ data class MisSolicitudesUiState(
 @HiltViewModel
 class MisSolicitudesViewModel @Inject constructor(
     private val obtenerMisSolicitudes: ObtenerMisSolicitudesUseCase,
-    private val cancelarSolicitudUseCase: CancelarSolicitudUseCase
+    private val cancelarSolicitudUseCase: CancelarSolicitudUseCase,
+    private val solicitudRepository: SolicitudRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(MisSolicitudesUiState())
@@ -32,6 +35,15 @@ class MisSolicitudesViewModel @Inject constructor(
 
     init {
         cargarSolicitudes()
+        viewModelScope.launch {
+            solicitudRepository.observarMisSolicitudes()
+                .catch { error ->
+                    _uiState.update { it.copy(error = error.message ?: "No se pudieron actualizar las solicitudes.") }
+                }
+                .collect { solicitudes ->
+                    _uiState.update { it.copy(solicitudes = solicitudes, cargando = false, error = null) }
+                }
+        }
     }
 
     fun cargarSolicitudes() {
@@ -93,8 +105,6 @@ class MisSolicitudesViewModel @Inject constructor(
             try {
                 cancelarSolicitudUseCase(solicitudId).fold(
                     onSuccess = {
-                        // Actualizar la tarjeta después de confirmar
-                        // el cambio en Firestore.
                         _uiState.update { actual ->
                             actual.copy(
                                 solicitudes = actual.solicitudes.map {
@@ -125,6 +135,24 @@ class MisSolicitudesViewModel @Inject constructor(
                     it.copy(cancelandoId = null)
                 }
             }
+        }
+    }
+
+    fun calificarSolicitud(solicitudId: String, estrellas: Int, comentario: String) {
+        if (solicitudId.isBlank()) return
+        viewModelScope.launch {
+            solicitudRepository.calificarTecnico(solicitudId, estrellas, comentario)
+                .onSuccess {
+                    _uiState.update {
+                        it.copy(mensaje = "Calificación enviada correctamente.")
+                    }
+                    cargarSolicitudes()
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(error = error.message ?: "No se pudo enviar la calificación.")
+                    }
+                }
         }
     }
 }
