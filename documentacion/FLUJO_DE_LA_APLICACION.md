@@ -109,9 +109,10 @@ Esto asegura que la app tenga acceso al mapa y que el sistema de sincronización
 La app contempla varios roles:
 - `cliente`
 - `tecnico`
-- `admin` (se maneja más como entidad restringida en reglas y lógica)
+- `admin`
 
 El perfil del usuario vive en Firestore en la colección `users/{uid}`.
+El rol se compara exactamente como texto en minúsculas. El registro crea perfiles `cliente`; `tecnico` y `admin` se asignan desde un entorno administrativo de confianza, no desde el formulario del usuario. La pantalla Home muestra opciones según el rol: cliente crea y consulta sus solicitudes; técnico ve solicitudes cercanas y las que aceptó; admin dispone de ambos flujos y del sistema de diseño.
 
 ### Archivo clave: `data/repository/AuthRepositoryImpl.kt`
 
@@ -176,7 +177,14 @@ data class SolicitudServicio(
     val precioSugerido: Double = 0.0,
     val estado: String = EstadoSolicitud.PUBLICADA.name,
     val tecnicoId: String? = null,
-    val fechaCreacion: Long = 0L
+    val comentarioEstado: String = "",
+    val fechaCreacion: Long = 0L,
+    val calificacionCliente: Int? = null,
+    val comentarioCliente: String = "",
+    val calificacionTecnico: Int? = null,
+    val comentarioTecnico: String = "",
+    val calificadoPorCliente: Boolean = false,
+    val calificadoPorTecnico: Boolean = false
 )
 ```
 
@@ -327,7 +335,7 @@ Esto evita que la solicitud se pierda cuando el usuario estaba sin conexión.
 
 ## 7. Flujo de “Mis solicitudes” del cliente
 
-Este es el flujo que te daba el error de índice.
+La pantalla escucha `observarMisSolicitudes()` y muestra los cambios de estado en tiempo real. `obtenerMisSolicitudes()` también existe para recargas explícitas; ambas consultas ordenan por fecha de creación.
 
 ### Consulta problemática
 Archivo: `data/repository/SolicitudRepositoryImpl.kt`
@@ -391,6 +399,22 @@ firebase deploy --only firestore:indexes
 
 4. Reabrir la pantalla de Mis solicitudes.
 
+El archivo de índices actual también contempla las consultas del técnico (`tecnicoId` + `fechaCreacion`) y de solicitudes disponibles (`estado` + `tecnicoId`). Los índices desplegados evitan el error `FAILED_PRECONDITION` para esos filtros y ordenamientos.
+
+### Estados del ciclo de vida
+
+Los estados están definidos en `domain/model/EstadoSolicitud.kt`:
+
+| Estado | Significado |
+|--------|-------------|
+| `PUBLICADA` | Solicitud creada, disponible para un técnico. |
+| `ACEPTADA` | Un técnico la aceptó y quedó asignado. |
+| `EN_PROCESO` | El trabajo comenzó. |
+| `FINALIZADA` | El técnico terminó el trabajo. |
+| `CANCELADA` | La solicitud fue cancelada por el cliente antes de asignarse o por el técnico asignado. |
+
+El cliente puede cancelar mientras la solicitud siga `PUBLICADA` y no tenga técnico. La tarjeta muestra también `comentarioEstado`, que sirve para informar al cliente sobre el progreso.
+
 ---
 
 ## 8. Flujo de seguimiento de solicitudes para técnicos
@@ -401,12 +425,8 @@ La app también tiene una parte de técnicos que ven solicitudes cercanas.
 - `presentation/tecnico/SolicitudesTecnicoViewModel.kt`
 - `presentation/tecnico/SolicitudesTecnicoScreen.kt`
 
-### Qué hace la lógica
-- obtiene la ubicación del técnico
-- consulta solicitudes publicadas y sin técnico asignado
-- calcula distancia a cada solicitud
-- ordena por cercanía o por urgencia
-- muestra un mapa con MapLibre y una lista de trabajos
+### Solicitudes cercanas
+El ViewModel obtiene la ubicación del técnico y observa solicitudes publicadas sin asignar. La pantalla muestra lista y mapa con MapLibre, calcula distancias, y permite ordenar por distancia, urgencia o fecha reciente. `GeocodingApi` consulta la dirección cuando se selecciona un punto.
 
 ### Consulta usada para técnicos
 Archivo: `SolicitudRepositoryImpl.kt`
@@ -424,6 +444,11 @@ val listener = firestore
 ```
 
 Esto permite observar en tiempo real todas las solicitudes disponibles del área.
+
+### Aceptación y solicitudes asignadas
+La pantalla tiene una pestaña **Mis solicitudes**, alimentada por `observarSolicitudesTecnico()` (`tecnicoId == uid`). Al aceptar una solicitud, `SolicitudRepositoryImpl.aceptarSolicitud()` ejecuta una transacción que verifica que siga publicada y sin asignar; en la misma operación establece `estado = ACEPTADA` y el `tecnicoId`. Esto evita que dos técnicos acepten el mismo trabajo.
+
+Desde esa bandeja el técnico puede iniciar el trabajo (`EN_PROCESO`), publicar una nota de progreso de hasta 500 caracteres, finalizarlo o cancelarlo. Las transiciones se validan en el repositorio y también en `firebase/firestore.rules`.
 
 ---
 
@@ -463,6 +488,7 @@ La notificación no se dispara solo por el app; requiere que un backend mande el
 - un backend externo con `firebase-admin`
 
 En este proyecto, la función para notificar técnicos cercanos se preparó en `firebase/functions/index.js`.
+El cliente FCM está preparado para registrar tokens y recibir mensajes, pero el envío automático requiere desplegar un backend emisor. Cloud Functions requiere el plan Blaze, por lo que no se debe presentar el aviso automático como operativo en el plan Spark.
 
 ---
 
@@ -470,24 +496,18 @@ En este proyecto, la función para notificar técnicos cercanos se preparó en `
 
 Archivo: `firebase/firestore.rules`
 
-Estas reglas restringen acceso y reflejan la idea del negocio:
+Las reglas verifican identidad y rol, además de validar las escrituras. En concreto, controlan quién puede crear/leer solicitudes, aceptar una publicación sin asignar, actualizar una solicitud que tiene asignada y calificarla una sola vez cuando está finalizada o cancelada. La ubicación se limita a coordenadas válidas del técnico/admin autenticado.
 
-```firestore
-match /solicitudes/{solicitudId} {
-  allow create: if esCliente() && datosValidos();
+### Colecciones y privacidad
 
-  allow read: if (request.auth != null && resource.data.clienteId == request.auth.uid)
-             || (esTecnico() && resource.data.estado == 'PUBLICADA' && resource.data.tecnicoId == null);
-}
-```
+| Ruta | Contenido y acceso |
+|------|--------------------|
+| `users/{uid}` | Perfil y rol; cada usuario lee su perfil. |
+| `solicitudes/{id}` | Datos del servicio, estado, técnico asignado, nota de progreso y banderas/estrellas de rating. La nota `comentarioEstado` se muestra al cliente. |
+| `reputaciones/{uid}` | Puntos acumulados y total de valoraciones; el promedio se calcula como puntos / total. Los usuarios autenticados pueden leer el resumen. |
+| `users/{uid}/valoraciones/{solicitudId}` | Comentario privado recibido por ese perfil. Solo el propietario del perfil puede leer sus reseñas. La regla comprueba que la reseña corresponda al rating válido de esa solicitud. |
 
-### Qué hace
-- el cliente solo puede crear sus propias solicitudes
-- el cliente solo puede leer sus propias solicitudes
-- el técnico puede ver solo solicitudes publicadas y sin técnico asignado
-- el rol no se auto-asigna desde la app; se controla con seguridad
-
-Esto es clave para evitar que un técnico pueda ver toda la app o cambiar estado de forma indiscriminada.
+Los comentarios de rating no se copian al documento público de la solicitud. Se guardan separados de las notas de progreso, que sí son parte del seguimiento del trabajo.
 
 ---
 
@@ -535,14 +555,42 @@ Técnico abre la app y ve la solicitud cercana
 ```text
 Cliente entra a pantalla "Mis solicitudes"
      ↓
-ViewModel llama a obtenerMisSolicitudes()
+MisSolicitudesViewModel observa observarMisSolicitudes()
      ↓
-Firestore query con clienteId + fechaCreacion
-     ↓
-Si no hay índice -> error FAILED_PRECONDITION
-     ↓
-Si existe índice -> devuelve lista ordenada por fecha
+Firestore escucha documentos donde clienteId = uid, ordenados por fecha
+    ↓
+Los cambios de estado/notas llegan a la pantalla en tiempo real
 ```
+
+### Caso: técnico acepta y procesa una solicitud
+
+```text
+Técnico abre “Solicitudes cercanas” y acepta una publicación
+    ↓
+SolicitudRepositoryImpl.aceptarSolicitud() valida y asigna en una transacción
+    ↓
+PUBLICADA → ACEPTADA → EN_PROCESO
+    ↓
+Técnico informa progreso y finaliza o cancela
+    ↓
+El cliente ve el estado y la nota desde su listener
+```
+
+### Caso: rating mutuo
+
+```text
+Solicitud FINALIZADA o CANCELADA y con técnico asignado
+    ↓
+Cada parte puede enviar una calificación de 1 a 5 estrellas una sola vez
+    ↓
+Una transacción actualiza la solicitud y reputaciones/{uid} del receptor
+    ↓
+El comentario se guarda en users/{receptorUid}/valoraciones/{solicitudId}
+    ↓
+El perfil del receptor escucha su resumen y reseñas privadas
+```
+
+El perfil muestra promedio, cantidad de reviews y cinco estrellas; con cero calificaciones las estrellas aparecen grises.
 
 ---
 
@@ -562,6 +610,24 @@ Si alguien quiere entender rápidamente la app, el orden ideal es:
 10. `firebase/firestore.rules`
 11. `firebase/firestore.indexes.json`
 
+### Responsabilidad de los archivos principales
+
+| Archivo | Responsabilidad |
+|---------|-----------------|
+| `presentation/navigation/FixNowNavHost.kt` | Declara las rutas Compose y conecta pantallas con ViewModels. |
+| `presentation/home/HomeViewModel.kt` y `HomeScreen.kt` | Cargan el rol desde el perfil y muestran las opciones permitidas a cliente, técnico o admin. |
+| `domain/model/SolicitudServicio.kt` y `EstadoSolicitud.kt` | Definen los datos de una solicitud y sus estados válidos para la UI. |
+| `domain/repository/SolicitudRepository.kt` | Contrato de las operaciones de solicitud, aceptación, seguimiento y calificación. |
+| `data/repository/SolicitudRepositoryImpl.kt` | Implementa las consultas en tiempo real, transacciones de aceptación/estado/rating y sincronización con Firestore. |
+| `data/mapper/SolicitudMapper.kt` | Convierte documentos de Firestore en `SolicitudServicio`. |
+| `presentation/solicitud/MisSolicitudesViewModel.kt` y `MisSolicitudesScreen.kt` | Observan las solicitudes del cliente, muestran estados y permiten cancelar o calificar. |
+| `presentation/tecnico/SolicitudesTecnicoViewModel.kt` y `SolicitudesTecnicoScreen.kt` | Gestionan solicitudes cercanas, mapa, solicitudes aceptadas, progreso y rating al cliente. |
+| `presentation/common/CalificacionDialog.kt` | Entrada de 1–5 estrellas y comentario para una valoración. |
+| `presentation/profile/ProfileViewModel.kt` y `ProfileScreen.kt` | Escuchan el resumen de reputación y reseñas privadas, y muestran promedio, total y estrellas. |
+| `firebase/firestore.rules` y `firebase/firestore.indexes.json` | Aplican permisos/transiciones del negocio y soportan las consultas compuestas. |
+
+Para seguir específicamente una solicitud, comienza por `presentation/solicitud/MisSolicitudesViewModel.kt` (cliente) o `presentation/tecnico/SolicitudesTecnicoViewModel.kt` (técnico), continúa en `domain/repository/SolicitudRepository.kt` y termina en `data/repository/SolicitudRepositoryImpl.kt`.
+
 ---
 
 ## 13. Resumen de la lógica principal
@@ -572,9 +638,10 @@ La aplicación está construida sobre una idea clara:
 - la capa de dominio define las reglas y los contratos
 - la capa de datos se encarga del backend real
 - las solicitudes se guardan en Firestore
-- los técnicos reciben alertas por FCM
+- FCM procesa notificaciones; para enviar alertas automáticas a técnicos hace falta un backend emisor. Cloud Functions no se despliegan en el plan Spark.
 - las solicitudes pendientes se reintentan con WorkManager al recuperar la red
 - el sistema está pensado para funcionar con Base64 y sin Storage
+- los comentarios de las valoraciones son privados para el perfil receptor
 
 Eso hace que la app sea más mantenible, más fácil de testear y más segura.
 
@@ -589,6 +656,6 @@ FixNow usa una arquitectura moderna y limpia:
 - `data` para Firebase
 - `service` para FCM
 - `work` para sincronización offline
-- `firebase` para reglas, índices y backend de notifications
+- `firebase` para reglas, índices y configuración del backend de notificaciones
 
 La clave es que toda la lógica importante está en repositorios y ViewModels, mientras que el negocio real se guarda en Firestore con reglas y protección por usuario.
