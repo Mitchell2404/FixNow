@@ -20,7 +20,30 @@ service cloud.firestore {
                     && request.resource.data.get('rol', 'cliente') == resource.data.get('rol', 'cliente')
                     && request.resource.data.get('fotoBase64', '').size() < 200000
                     && request.resource.data.diff(resource.data).affectedKeys()
-                         .hasOnly(['nombre', 'notificacionesActivas', 'fotoBase64', 'biometriaActivada']);
+                         .hasOnly([
+                           'nombre',
+                           'notificacionesActivas',
+                           'fotoBase64',
+                           'biometriaActivada',
+                           'ubicacionLatitud',
+                           'ubicacionLongitud',
+                           'ubicacionActualizadaEn'
+                         ])
+                    && (
+                      !request.resource.data.diff(resource.data).affectedKeys()
+                        .hasAny(['ubicacionLatitud', 'ubicacionLongitud', 'ubicacionActualizadaEn'])
+                      || (
+                        resource.data.get('rol', '') in ['tecnico', 'admin']
+                        &&
+                        request.resource.data.ubicacionLatitud is number
+                        && request.resource.data.ubicacionLatitud >= -90
+                        && request.resource.data.ubicacionLatitud <= 90
+                        && request.resource.data.ubicacionLongitud is number
+                        && request.resource.data.ubicacionLongitud >= -180
+                        && request.resource.data.ubicacionLongitud <= 180
+                        && request.resource.data.ubicacionActualizadaEn == request.time
+                      )
+                    );
 
       allow delete: if false;
 
