@@ -1,13 +1,21 @@
 package com.fixnow.app.presentation.home
 
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
@@ -19,6 +27,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.fixnow.app.presentation.theme.FixNowTheme
@@ -35,8 +49,15 @@ fun HomeScreen(
     esTecnico: Boolean,
     esAdmin: Boolean,
     onSolicitudesTecnico: () -> Unit,
-    onLogout: () -> Unit
+    onLogout: () -> Unit,
+    fotoBase64: String = ""
 ) {
+    val fotoPerfil = androidx.compose.runtime.remember(fotoBase64) {
+        runCatching {
+            val bytes = Base64.decode(fotoBase64, Base64.DEFAULT)
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+        }.getOrNull()
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -56,15 +77,44 @@ fun HomeScreen(
                 shadowElevation = 2.dp
             ) {
 
-                Text(
-                    text = "FixNow",
-                    modifier = Modifier.padding(
-                        horizontal = 24.dp,
-                        vertical = 18.dp
-                    ),
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "FixNow",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Surface(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .semantics { contentDescription = "Abrir mi perfil" }
+                            .clickable(onClick = onProfile),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                    ) {
+                        if (fotoPerfil != null) {
+                            Image(
+                                bitmap = fotoPerfil,
+                                contentDescription = "Foto de perfil",
+                                modifier = Modifier.fillMaxSize().clip(CircleShape),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = displayName.firstOrNull()?.uppercase() ?: "P",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             Column(
@@ -143,13 +193,6 @@ fun HomeScreen(
                     ) {
                         Text("Solicitudes de técnico")
                     }
-                }
-
-                Button(
-                    onClick = onProfile,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Mi perfil")
                 }
 
                 if (esAdmin) {

@@ -19,6 +19,7 @@ import javax.inject.Inject
 
 data class HomeUiState(
     val displayName: String = "",
+    val fotoBase64: String = "",
     val emailVerified: Boolean = true,
     val esTecnico: Boolean = false,
     val esAdmin: Boolean = false
@@ -52,6 +53,7 @@ class HomeViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     displayName = nombre.ifBlank { user.email },
+                    fotoBase64 = profile?.fotoBase64.orEmpty(),
                     emailVerified = user.isEmailVerified,
                     esTecnico = profile?.rol == "tecnico",
                     esAdmin = profile?.rol == "admin"

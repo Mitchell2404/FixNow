@@ -54,6 +54,7 @@ fun SolicitudServicioScreen(
     onUrgenciaChange: (UrgenciaServicio) -> Unit,
     onTomarFoto: () -> Unit,
     onObtenerUbicacion: () -> Unit,
+    onSeleccionarUbicacion: (Double, Double) -> Unit,
     onDireccionChange: (String) -> Unit,
     onEnviarSolicitud: () -> Unit,
     onVolver: () -> Unit
@@ -61,6 +62,20 @@ fun SolicitudServicioScreen(
     var categoriasAbiertas by remember {
         mutableStateOf(false)
     }
+    var selectorUbicacionAbierto by remember {
+        mutableStateOf(false)
+    }
+
+    SelectorUbicacionDialog(
+        visible = selectorUbicacionAbierto,
+        latitudInicial = state.latitud,
+        longitudInicial = state.longitud,
+        onDismiss = { selectorUbicacionAbierto = false },
+        onConfirm = { latitud, longitud ->
+            selectorUbicacionAbierto = false
+            onSeleccionarUbicacion(latitud, longitud)
+        }
+    )
 
     Column(
         modifier = Modifier
@@ -215,6 +230,14 @@ fun SolicitudServicioScreen(
                     "Actualizar ubicación"
                 }
             )
+        }
+
+        OutlinedButton(
+            onClick = { selectorUbicacionAbierto = true },
+            enabled = !state.obteniendoUbicacion,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Elegir ubicación en el mapa")
         }
 
         if (state.obteniendoUbicacion) {
@@ -413,6 +436,7 @@ private fun SolicitudServicioScreenPreview() {
             onUrgenciaChange = {},
             onTomarFoto = {},
             onObtenerUbicacion = {},
+            onSeleccionarUbicacion = { _, _ -> },
             onDireccionChange = {},
             onEnviarSolicitud = {},
             onVolver = {}

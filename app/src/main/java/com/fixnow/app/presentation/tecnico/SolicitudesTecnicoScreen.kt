@@ -80,12 +80,12 @@ fun SolicitudesTecnicoScreen(
     onRateClient: (String, Int, String) -> Unit,
     onBack: () -> Unit
 ) {
-    val cercanas = remember(state.solicitudes, state.latitud, state.longitud, state.orden) {
+    val ordenadas = remember(state.solicitudes, state.latitud, state.longitud, state.orden) {
         val conDistancia = state.solicitudes.map { solicitud ->
             solicitud to state.latitud?.let { lat ->
                 state.longitud?.let { lon -> distanciaMetros(lat, lon, solicitud.latitud, solicitud.longitud) }
             }
-        }.filter { (_, distancia) -> distancia == null || distancia <= RADIO_CERCANIA_METROS }
+        }
 
         when (state.orden) {
             OrdenSolicitudes.DISTANCIA -> conDistancia.sortedBy { it.second ?: Double.MAX_VALUE }
@@ -93,6 +93,11 @@ fun SolicitudesTecnicoScreen(
             OrdenSolicitudes.RECIENTES -> conDistancia.sortedByDescending { it.first.fechaCreacion }
         }
     }
+    val cercanas = remember(ordenadas) {
+        ordenadas.filter { (_, distancia) -> distancia == null || distancia <= RADIO_CERCANIA_METROS }
+    }
+    var mostrarTodas by remember { mutableStateOf(false) }
+    val solicitudesVisibles = if (mostrarTodas) ordenadas else cercanas
     val seleccionada = state.solicitudes.firstOrNull { it.id == state.seleccionadaId }
     var menuOrdenAbierto by remember { mutableStateOf(false) }
     var solicitudACalificar by remember { mutableStateOf<SolicitudServicio?>(null) }
@@ -182,7 +187,7 @@ fun SolicitudesTecnicoScreen(
                     }
                 }
                 Spacer(Modifier.weight(1f))
-                Text("${cercanas.size} solicitudes", style = MaterialTheme.typography.labelLarge)
+                Text("${solicitudesVisibles.size} solicitudes", style = MaterialTheme.typography.labelLarge)
             }
 
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
@@ -202,10 +207,24 @@ fun SolicitudesTecnicoScreen(
 
             if (state.latitud == null) {
                 Text(
-                    "Activa la ubicación para ordenar y recibir avisos de solicitudes dentro de 50 km.",
+                    "No hay ubicación del dispositivo. Se muestran todas las solicitudes sin filtro de distancia.",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        if (mostrarTodas) "Mostrando todas las distancias" else "Radio cercano: 50 km",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    TextButton(onClick = { mostrarTodas = !mostrarTodas }) {
+                        Text(if (mostrarTodas) "Filtrar cercanas" else "Mostrar todas")
+                    }
+                }
             }
 
             when {
@@ -213,9 +232,19 @@ fun SolicitudesTecnicoScreen(
                     CircularProgressIndicator()
                 }
                 state.error != null -> Text(state.error, color = MaterialTheme.colorScheme.error)
+                solicitudesVisibles.isEmpty() -> {
+                    if (state.solicitudes.isEmpty()) {
+                        Text("No hay solicitudes publicadas disponibles en este momento.")
+                    } else {
+                        Text("Hay ${state.solicitudes.size} solicitudes, pero ninguna está dentro de 50 km.")
+                        TextButton(onClick = { mostrarTodas = true }) {
+                            Text("Mostrar todas las solicitudes")
+                        }
+                    }
+                }
                 state.vista == VistaSolicitudes.MAPA -> {
                     SolicitudesMap(
-                        solicitudes = cercanas.map { it.first },
+                        solicitudes = solicitudesVisibles.map { it.first },
                         solicitudSeleccionadaId = state.seleccionadaId,
                         latitudActual = state.latitud,
                         longitudActual = state.longitud,
@@ -224,7 +253,7 @@ fun SolicitudesTecnicoScreen(
                     seleccionada?.let { solicitud ->
                         SolicitudDetalle(
                             solicitud = solicitud,
-                            distancia = cercanas.firstOrNull { it.first.id == solicitud.id }?.second,
+                            distancia = solicitudesVisibles.firstOrNull { it.first.id == solicitud.id }?.second,
                             direccionGeocodificada = state.direccionesGeocodificadas[solicitud.id],
                             geocodificando = state.geocodificandoId == solicitud.id,
                             reputacionCliente = state.reputaciones[solicitud.clienteId],
@@ -233,12 +262,11 @@ fun SolicitudesTecnicoScreen(
                         )
                     }
                 }
-                cercanas.isEmpty() -> Text("Todavía no hay solicitudes abiertas cerca de ti.")
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(cercanas, key = { it.first.id }) { (solicitud, distancia) ->
+                    items(solicitudesVisibles, key = { it.first.id }) { (solicitud, distancia) ->
                         SolicitudDetalle(
                             solicitud = solicitud,
                             distancia = distancia,

@@ -226,6 +226,7 @@ fun FixNowNavHost(
                         )
                     )
                 },
+                onSeleccionarUbicacion = viewModel::seleccionarUbicacionManual,
                 onDireccionChange = viewModel::cambiarDireccion,
                 onEnviarSolicitud = viewModel::enviarSolicitud,
                 onVolver = {
@@ -617,6 +618,7 @@ private fun HomeRoute(
 
         esTecnico = state.esTecnico,
         esAdmin = state.esAdmin,
+        fotoBase64 = state.fotoBase64,
 
         onSolicitudesTecnico = {
             navController.navigate(Routes.SOLICITUDES_TECNICO) {

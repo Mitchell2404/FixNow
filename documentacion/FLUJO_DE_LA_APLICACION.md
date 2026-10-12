@@ -73,6 +73,23 @@ Estas capas responden a eventos del sistema:
 - reintentos de red
 - sincronización offline
 
+### Guion breve para explicar la arquitectura
+Puedes presentar el recorrido de una acción así:
+
+```text
+Compose Screen recibe el clic
+    ↓ callback
+ViewModel actualiza StateFlow y ejecuta la acción
+    ↓
+UseCase / contrato Repository del dominio
+    ↓ implementación
+RepositoryImpl usa Firebase, ubicación o almacenamiento local
+    ↓ resultado
+ViewModel publica estado/evento y Compose vuelve a dibujar
+```
+
+La pantalla describe la interfaz; el `ViewModel` coordina el estado; `domain` expresa modelos/contratos; `data` implementa esos contratos. En algunas funciones recientes el ViewModel llama directamente al repositorio, por ejemplo en el flujo del técnico, por lo que la separación es una guía de responsabilidades y no todos los caminos pasan por un UseCase.
+
 ---
 
 ## 3. Archivo principal de arranque: `FixNowApp.kt`
@@ -152,6 +169,14 @@ Resultado -> StateFlow/UI
 ```
 
 Si sirve, en la app se usa `StateFlow` para manejar si está cargando, si hubo error, si hay navegación, etc.
+
+### Avatar circular del perfil en Home
+`HomeViewModel.refresh()` obtiene el perfil de Firestore y llena `HomeUiState.fotoBase64`. `FixNowNavHost` pasa ese valor a `HomeScreen`; la pantalla decodifica el Base64 como bitmap, lo recorta en un círculo y conserva la inicial del nombre como alternativa si no existe una imagen válida. El círculo es también el botón que navega a Perfil.
+
+```text
+users/{uid}.fotoBase64 → HomeViewModel → HomeUiState
+                    → FixNowNavHost → HomeScreen → avatar circular
+```
 
 ---
 
@@ -236,6 +261,24 @@ documento.set(datos).await()
 
 ### Importante: no se usa Storage
 La app usa Base64 directamente, como ya lo definiste en el proyecto. Esto evita Firebase Storage y reduce complejidad.
+
+### Ubicación actual o elegida en el mapa
+El formulario ofrece dos caminos para establecer el punto del servicio:
+
+1. **Usar mi ubicación:** `FixNowNavHost` solicita permiso y llama a `SolicitudServicioViewModel.obtenerUbicacion()`. Google Location Services entrega coordenadas; el ViewModel intenta resolver la dirección con Android `Geocoder`.
+2. **Elegir ubicación en el mapa:** `SolicitudServicioScreen` abre `SelectorUbicacionDialog`. `MapLibreMap.addOnMapClickListener` actualiza el marcador y **Usar este punto** devuelve latitud/longitud sin requerir permiso GPS.
+
+En ambos casos `seleccionarUbicacionManual()` o `obtenerUbicacion()` guarda coordenadas y dirección en `SavedStateHandle`, reflejándolas en `SolicitudServicioUiState`. `enviarSolicitud()` comprueba que las coordenadas existan antes de crear el documento. Si la geocodificación falla, el punto queda guardado y la dirección se puede escribir manualmente.
+
+```text
+SolicitudServicioScreen
+    ├─ GPS → LocationServices → ViewModel
+    └─ Elegir mapa → SelectorUbicacionDialog → MapLibre → ViewModel
+                                                                                                ↓
+                                                                            SavedStateHandle + Geocoder
+                                                                                                ↓
+                                                                crearSolicitud() → Firestore
+```
 
 ---
 
@@ -428,6 +471,8 @@ La app también tiene una parte de técnicos que ven solicitudes cercanas.
 ### Solicitudes cercanas
 El ViewModel obtiene la ubicación del técnico y observa solicitudes publicadas sin asignar. La pantalla muestra lista y mapa con MapLibre, calcula distancias, y permite ordenar por distancia, urgencia o fecha reciente. `GeocodingApi` consulta la dirección cuando se selecciona un punto.
 
+La consulta Firestore no es geoespacial: primero recibe todas las solicitudes `PUBLICADA` sin técnico y la pantalla filtra localmente las que están a más de 50 km del GPS. El control **Mostrar todas** permite quitar ese filtro. Por eso una lista sin resultados puede significar que no hay publicaciones, que ninguna queda dentro del radio o que la consulta falló; la pantalla diferencia esos estados y muestra el error cuando Firestore lo devuelve.
+
 ### Consulta usada para técnicos
 Archivo: `SolicitudRepositoryImpl.kt`
 
@@ -615,12 +660,14 @@ Si alguien quiere entender rápidamente la app, el orden ideal es:
 | Archivo | Responsabilidad |
 |---------|-----------------|
 | `presentation/navigation/FixNowNavHost.kt` | Declara las rutas Compose y conecta pantallas con ViewModels. |
-| `presentation/home/HomeViewModel.kt` y `HomeScreen.kt` | Cargan el rol desde el perfil y muestran las opciones permitidas a cliente, técnico o admin. |
+| `presentation/home/HomeViewModel.kt` y `HomeScreen.kt` | Cargan el rol y `fotoBase64`; muestran las opciones por rol y el avatar circular con fallback a inicial. |
 | `domain/model/SolicitudServicio.kt` y `EstadoSolicitud.kt` | Definen los datos de una solicitud y sus estados válidos para la UI. |
 | `domain/repository/SolicitudRepository.kt` | Contrato de las operaciones de solicitud, aceptación, seguimiento y calificación. |
 | `data/repository/SolicitudRepositoryImpl.kt` | Implementa las consultas en tiempo real, transacciones de aceptación/estado/rating y sincronización con Firestore. |
 | `data/mapper/SolicitudMapper.kt` | Convierte documentos de Firestore en `SolicitudServicio`. |
 | `presentation/solicitud/MisSolicitudesViewModel.kt` y `MisSolicitudesScreen.kt` | Observan las solicitudes del cliente, muestran estados y permiten cancelar o calificar. |
+| `presentation/solicitud/SolicitudServicioScreen.kt` y `SelectorUbicacionDialog.kt` | Presentan el formulario y selector manual de ubicación en MapLibre. |
+| `presentation/solicitud/SolicitudServicioViewModel.kt` | Conserva el formulario, resuelve coordenadas/dirección y crea la solicitud. |
 | `presentation/tecnico/SolicitudesTecnicoViewModel.kt` y `SolicitudesTecnicoScreen.kt` | Gestionan solicitudes cercanas, mapa, solicitudes aceptadas, progreso y rating al cliente. |
 | `presentation/common/CalificacionDialog.kt` | Entrada de 1–5 estrellas y comentario para una valoración. |
 | `presentation/profile/ProfileViewModel.kt` y `ProfileScreen.kt` | Escuchan el resumen de reputación y reseñas privadas, y muestran promedio, total y estrellas. |

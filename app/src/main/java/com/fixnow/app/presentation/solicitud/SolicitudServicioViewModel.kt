@@ -309,6 +309,39 @@ class SolicitudServicioViewModel @Inject constructor(
         }
     }
 
+    fun seleccionarUbicacionManual(latitud: Double, longitud: Double) {
+        if (latitud !in -90.0..90.0 || longitud !in -180.0..180.0) {
+            mostrarErrorUbicacion("Selecciona un punto válido en el mapa.")
+            return
+        }
+        if (_uiState.value.obteniendoUbicacion) return
+
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(obteniendoUbicacion = true, errorUbicacion = null)
+            }
+            try {
+                savedStateHandle["latitud"] = latitud
+                savedStateHandle["longitud"] = longitud
+                savedStateHandle["ubicacionAproximada"] = false
+                savedStateHandle["direccion"] = ""
+                actualizarEstado()
+
+                val direccionEncontrada = buscarDireccion(latitud, longitud)
+                if (direccionEncontrada != null) {
+                    savedStateHandle["direccion"] = direccionEncontrada
+                    actualizarEstado()
+                } else {
+                    mostrarErrorUbicacion(
+                        "Punto guardado. No se encontró la dirección; puedes escribirla manualmente."
+                    )
+                }
+            } finally {
+                _uiState.update { it.copy(obteniendoUbicacion = false) }
+            }
+        }
+    }
+
     private fun actualizarEstado() {
         val formulario = leerEstado()
 
